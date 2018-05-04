@@ -1,0 +1,21 @@
+<?php
+/**
+* @file
+* Uninstall for Leidos Website API Renderer.
+*/
+
+function apirenderer_uninstall() {
+	variable_del('apirenderer_propublica_key');
+	variable_del('apirenderer_propublica_id');
+	variable_del('apirenderer_propublica_default_results');
+	variable_del('apirenderer_eventbrite_key');
+	variable_del('apirenderer_eventbrite_noevents');
+	variable_del('apirenderer_instagram_gallery_token');
+	variable_del('apirenderer_instagram_gallery_id');
+	variable_del('apirenderer_facebook_album_token');
+	variable_del('apirenderer_facebook_album_id');
+	variable_del('apirenderer_propublica_data');
+	variable_del('apirenderer_eventbrite_data');
+	variable_del('apirenderer_instagram_data');
+	variable_del('apirenderer_facebook_data');
+}

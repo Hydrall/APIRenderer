@@ -1,0 +1,2089 @@
+<?php
+/**
+ * @file
+ * A block module that pulls API data and sorts it into tables or otherwise appropriate presentations.
+ */
+
+/**
+ * Implements hook_help().
+ *
+ * Displays help and module information.
+ *
+ * @param path
+ *   Which path of the site we're using to display help
+ * @param arg
+ *   Array that holds the current path as returned from arg() function
+ */
+require_once('includes/TwitterAPIExchange.php');
+function apirenderer_help($path, $arg) {
+	switch($path) {
+		case "admin/help#apirenderer":
+			return t("Allows the implementation of various APIs, which are cached server-side and renewed with each Cron run.");
+			break;
+	}
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function apirenderer_block_info() {
+	$blocks['eventbrite'] = array(
+		'info' => t('Eventbrite API - All Events'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+	$blocks['eventbritesingle'] = array(
+		'info' => t('Eventbrite API - Single Event'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+	$blocks['facebook_album'] = array(
+		'info' => t('Facebook Graph Album API - All Albums'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+	$blocks['facebook_album_short'] = array(
+		'info' => t('Facebook Graph Album API - Limited Albums and Read More'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+	$blocks['facebook_feed'] = array(
+		'info' => t('Facebook Graph Feed API'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+	$blocks['facebook_feed_short'] = array(
+		'info' => t('Facebook Graph Feed API - Limited Feed and Read More'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+
+/*
+	$blocks['flickr'] = array(
+		'info' => t('Flickr API'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+	$blocks['flickr_short'] = array(
+		'info' => t('Flickr API - Limited Images and Read More'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+*/
+	$blocks['instagram_gallery'] = array(
+		'info' => t('Instagram Gallery API - Full'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+	$blocks['instagram_gallery_short'] = array(
+		'info' => t('Instagram Gallery API - Short'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+	$blocks['propublica'] = array(
+		'info' => t('Pro Publica Legislation API'),
+		'cache' => DRUPAL_CACHE_PER_ROLE,
+	);
+
+// Twitter Block
+
+		$blocks['twitter_feed'] = array(
+			'info' => t('Twitter Feed - Standard'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+
+	return $blocks;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function apirenderer_theme() {
+	return array(
+		'apirenderer_error' => array(
+			'template' => 'tpl/apirenderer-error',
+			'arguments' => array(
+				'message' => NULL
+			),
+		),
+		'apirenderer_eventbrite_date' => array(
+			'template' => 'tpl/apirenderer-eventbrite-date',
+			'arguments' => array(
+				'month' => NULL,
+				'day' => NULL,
+				'year' => NULL,
+				'hour' => NULL,
+				'minute' => NULL,
+				'half' => NULL
+			),
+		),
+		'apirenderer_eventbrite_event' => array(
+			'template' => 'tpl/apirenderer-eventbrite-event',
+			'arguments' => array(
+				'url' => NULL,
+				'img' => NULL,
+				'free' => NULL,
+				'date' => NULL,
+				'title' => NULL,
+				'location' => NULL
+			),
+		),
+		'apirenderer_eventbrite_eventbox' => array(
+			'template' => 'tpl/apirenderer-eventbrite-eventbox',
+			'arguments' => array(
+				'contentEvents' => NULL
+			),
+		),
+		'apirenderer_propublica_item' => array(
+			'template' => 'tpl/apirenderer-propublica-item',
+			'arguments' => array(
+				'url' => NULL,
+				'number' => NULL,
+				'title' => NULL,
+				'date' => NULL,
+				'this' => NULL,
+				'congress' => NULL
+			),
+		),
+		'apirenderer_propublica_table' => array(
+			'template' => 'tpl/apirenderer-propublica-table',
+			'arguments' => array(
+				'contentSp' => NULL,
+				'contentCo' => NULL,
+				'results' => NULL
+			),
+		),
+		'photo_gallery' => array(
+			'template' => 'tpl/photo-gallery',
+			'arguments' => array(
+				'content' => NULL
+			)
+		),
+		'photo_gallery_sidebar' => array(
+			'template' => 'tpl/photo-gallery-sidebar',
+			'arguments' => array(
+				'content' => NULL,
+				'page_link' => NULL
+			)
+		),
+		'photo_gallery_item' => array(
+			'template' => 'tpl/photo-gallery-item',
+			'arguments' => array(
+				'title' => NULL,
+				'albumid' => NULL,
+				'cover' => NULL,
+				'colorbox' => "",
+				'target' => "",
+				'type' => NULL,
+				'summary' => "",
+				'flickrembed' => "",
+				'link' => NULL
+			)
+		),
+		'apirenderer_feed_item' => array(
+			'template' => 'tpl/apirenderer-feed-item',
+			'arguments' => array(
+				'id' => NULL,
+				'name' => NULL,
+				'message' => NULL,
+				'permalink' => NULL,
+				'picture' => NULL,
+				'link' => NULL,
+				'icon' => NULL,
+				'extras' => NULL,
+				'caption' => NULL,
+				'time' => NULL,
+				'story' => NULL,
+				'readMore' => NULL
+			)
+		),
+		'apirenderer_twitter_feed' => array (
+			'template' => 'tpl/twitter_feed',
+			'arguments' => array(
+				'avatar' => NULL,
+				'screen_name' => NULL,
+				'content' => NULL,
+				'followurl' => NULL,
+			)
+		),
+		'apirenderer_twitter_single' => array (
+			'template' => 'tpl/tweet_single',
+			'arguments' => array(
+				'avatar' => NULL,
+				'screen_name' => NULL,
+				'message' => NULL,
+				'date' => NULL,
+			)
+		),
+	);
+}
+
+/**
+ * Implements hook_menu().
+ */
+function apirenderer_menu() {
+	$items = array();
+	$items['admin/config/content/apirenderer'] = array(
+		'title' => 'Leidos Website API Renderer',
+		'description' => 'Configuration for the Leidos Website API Renderer module. Gets API data, stores it server-side, and refreshes it with each Cron run.',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('apirenderer_form'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM,
+	);
+	return $items;
+}
+
+/**
+ * Page callback: Leidos Website API Renderer settings.
+ *
+ * @see apirenderer_menu()
+ */
+function apirenderer_form($form, &$form_state) {
+	$form['apirenderer_proxy'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Proxy Address'),
+		'#default_value' => variable_get('apirenderer_proxy', ''),
+		'#size' => '20',
+		'#description' => 'If the server is set up to require a proxy address, enter it here.',
+		'#maxlength' => '40',
+		'#required' => '0',
+	);
+	//PROPUBLICA ADMIN FORM
+	$form['apirenderer_propublica'] = array(
+		'#collapsed' => '0',
+		'#type' => 'fieldset',
+		'#collapsible' => '1',
+		'#title' => t('Pro Publica API Settings'),
+	);
+		$form['apirenderer_propublica']['apirenderer_propublica_id'] = array(
+			'#type' => 'textfield',
+			'#title' => t('ID'),
+			'#default_value' => variable_get('apirenderer_propublica_id', ''),
+			'#size' => '20',
+			'#description' => 'This should be the same as the congressperson\'s ID. Case sensitive.',
+			'#maxlength' => '20',
+			'#required' => '0',
+		);
+		$form['apirenderer_propublica']['apirenderer_propublica_key'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Access Key'),
+			'#default_value' => variable_get('apirenderer_propublica_key', ''),
+			'#size' => '60',
+			'#description' => 'Enter only the Access Key for the Pro Publica API. Case sensitive.',
+			'#maxlength' => '300',
+			'#required' => '0',
+		);
+		$form['apirenderer_propublica']['apirenderer_propublica_default_results'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Default Results Per Page'),
+			'#default_value' => variable_get('apirenderer_propublica_default_results', '20'),
+			'#size' => '2',
+			'#description' => 'Max: 50',
+			'#element_validate' => array(
+				'element_validate_integer_positive'
+			),
+			'#required' => '0',
+		);
+	//EVENTBRITE ADMIN FORM
+	$form['apirenderer_eventbrite'] = array(
+		'#collapsed' => '0',
+		'#type' => 'fieldset',
+		'#collapsible' => '1',
+		'#title' => t('Eventbrite API Settings'),
+	);
+		$form['apirenderer_eventbrite']['apirenderer_eventbrite_key'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Key for Eventbrite API.'),
+			'#default_value' => variable_get('apirenderer_eventbrite_key', ''),
+			'#size' => '60',
+			'#description' => 'Enter only the Access Key for the eventbrite API. Case sensitive.',
+			'#maxlength' => '300',
+			'#required' => '0',
+		);
+		$form['apirenderer_eventbrite']['apirenderer_eventbrite_noevents'] = array(
+			'#type' => 'textfield',
+			'#title' => t('No Events Message'),
+			'#default_value' => variable_get('apirenderer_eventbrite_noevents', 'Currently there are no planned events for the near future.'),
+			'#size' => '60',
+			'#description' => 'Enter the message to be displayed when no events are found.',
+			'#maxlength' => '240',
+			'#required' => '0',
+		);
+	//INSTAGRAM ADMIN FORM
+	$form['apirenderer_instagram'] = array(
+		'#collapsed' => '0',
+		'#type' => 'fieldset',
+		'#collapsible' => '1',
+		'#title' => t('Instagram Photo Gallery API Settings'),
+	);
+		$form['apirenderer_instagram']['apirenderer_instagram_gallery_token'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Access Token for the Instagram Gallery API block.'),
+			'#default_value' => variable_get('apirenderer_instagram_gallery_token', ''),
+			'#size' => '60',
+			'#description' => ('An access token is required to pull Instagram data. If this field is blank, click <a href="" class="APIRendererTokenLink">here</a>.'),
+			'#maxlength' => '300',
+			'#required' => '0',
+		);
+		$form['apirenderer_instagram']['apirenderer_instagram_gallery_short_default_results'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Default Results Per Page'),
+			'#default_value' => variable_get('apirenderer_instagram_gallery_short_default_results', '5'),
+			'#size' => '2',
+			'#description' => 'How many results you would prefer on the short / sidebar-sized instagram API display. Max: 20.',
+			'#element_validate' => array(
+				'element_validate_integer_positive'
+			),
+			'#required' => '0',
+		);
+		$form['apirenderer_instagram']['apirenderer_instagram_gallery_short_main_node'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Main Node ID'),
+			'#default_value' => variable_get('apirenderer_instagram_gallery_short_main_node', ''),
+			'#size' => '2',
+			'#description' => 'Enter the Node ID of the main Instagram Gallery page here. Allows short version of the block to have a Read More link. This can be found by editing the page on which the main gallery is located, if you do not know it.',
+			'#maxlength' => '20',
+			'#required' => '0',
+		);
+	//FACEBOOK ADMIN FORM
+	$form['apirenderer_facebook'] = array(
+		'#collapsed' => '0',
+		'#type' => 'fieldset',
+		'#collapsible' => '1',
+		'#title' => t('Facebook Graphs API Settings'),
+	);
+		$form['apirenderer_facebook']['apirenderer_facebook_id'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Facebook ID for API.'),
+			'#default_value' => variable_get('apirenderer_facebook_id', ''),
+			'#size' => '20',
+			'#description' => 'Use <a href="https://findmyfbid.com/">this site</a> to get your ID number, if you cannot find it.',
+			'#maxlength' => '20',
+			'#required' => '0',
+		);
+		$form['apirenderer_facebook']['apirenderer_facebook_token'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Access Token for the Facebook Graph blocks.'),
+			'#default_value' => variable_get('apirenderer_facebook_token', ''),
+			'#size' => '60',
+			'#description' => 'An access token is required to pull Facebook data.',
+			'#maxlength' => '300',
+			'#required' => '0',
+		);
+		$form['apirenderer_facebook']['apirenderer_facebook_album_short_default_results'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Default Results Per Page (Albums)'),
+			'#default_value' => variable_get('apirenderer_facebook_album_short_default_results', '5'),
+			'#size' => '2',
+			'#description' => 'How many results you would prefer on the short / sidebar-sized Facebook Graph Albums API display. Max: 20.',
+			'#element_validate' => array(
+				'element_validate_integer_positive'
+			),
+			'#required' => '0',
+		);
+		$form['apirenderer_facebook']['apirenderer_facebook_album_short_main_node'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Main Node ID (Albums)'),
+			'#default_value' => variable_get('apirenderer_facebook_album_short_main_node', ''),
+			'#size' => '20',
+			'#description' => 'Optional. Enter the Node ID of the main Facebook Graph Album Gallery page here. Allows short version of the block to have a Read More link. This can be found by editing the page on which the main gallery is located, if you do not know it.',
+			'#maxlength' => '20',
+			'#required' => '0',
+		);
+		$form['apirenderer_facebook']['apirenderer_facebook_feed_short_default_results'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Default Results Per Page (Feed)'),
+			'#default_value' => variable_get('apirenderer_facebook_feed_short_default_results', '5'),
+			'#size' => '2',
+			'#description' => 'How many results you would prefer on the short / sidebar-sized Facebook Graph Feed API display. Max: 20.',
+			'#element_validate' => array(
+				'element_validate_integer_positive'
+			),
+			'#required' => '0',
+		);
+		$form['apirenderer_facebook']['apirenderer_facebook_feed_short_message_length'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Facebook Post Max Length'),
+			'#default_value' => variable_get('apirenderer_facebook_feed_short_message_length', '280'),
+			'#size' => '2',
+			'#description' => 'How long would you like facebook posts to be in length, at most?',
+			'#element_validate' => array(
+				'element_validate_integer_positive'
+			),
+			'#required' => '0',
+		);
+		$form['apirenderer_facebook']['apirenderer_facebook_feed_short_main_node'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Main Node ID (Feed)'),
+			'#default_value' => variable_get('apirenderer_facebook_feed_short_main_node', ''),
+			'#size' => '20',
+			'#description' => 'Optional. Enter the Node ID of the main Facebook Graph Feed page here. Allows short version of the block to have a Read More link. This can be found by editing the page on which the main gallery is located, if you do not know it.',
+			'#maxlength' => '20',
+			'#required' => '0',
+		);
+	//TWITTER ADMIN FORM
+	$form['apirenderer_twitter'] = array(
+		'#collapsed' => '0',
+		'#type' => 'fieldset',
+		'#collapsible' => '1',
+		'#title' => t('Twitter API Settings'),
+		'#description' => 'Visit <a href="https://apps.twitter.com/">apps.twitter.com</a> to create your twitter developer account and obtain your consumer keys',
+
+	);
+		$form['apirenderer_twitter']['apirenderer_twitter_consumer_key'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Twitter Consumer Key (API KEY).'),
+			'#default_value' => variable_get('apirenderer_twitter_consumer_key', ''),
+			'#size' => '50',
+			'#description' => 'Consumer Token',
+			'#maxlength' => '150',
+			'#required' => '0',
+		);
+		$form['apirenderer_twitter']['apirenderer_twitter_consumer_key_secret'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Twitter Secret Consumer Key (API KEY).'),
+			'#default_value' => variable_get('apirenderer_twitter_consumer_key_secret', ''),
+			'#size' => '150',
+			'#description' => 'Consumer Secret Key',
+			'#maxlength' => '150',
+			'#required' => '0',
+		);
+		$form['apirenderer_twitter']['apirenderer_twitter_oauth_access_token'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Twitter Oauth Access Token.'),
+			'#default_value' => variable_get('apirenderer_twitter_oauth_access_token', ''),
+			'#size' => '150',
+			'#description' => 'Twitter Oauth Token',
+			'#maxlength' => '300',
+			'#required' => '0',
+		);
+		$form['apirenderer_twitter']['apirenderer_twitter_oauth_access_token_secret'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Twitter Oauth Access Token Secret.'),
+			'#default_value' => variable_get('apirenderer_twitter_oauth_access_token_secret', ''),
+			'#size' => '50',
+			'#description' => 'Twitter Oauth Secret Token',
+			'#maxlength' => '50',
+			'#required' => '0',
+		);
+		$form['apirenderer_twitter']['apirenderer_twitter_user_timeline'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Twitter Account/timeline'),
+			'#default_value' => variable_get('apirenderer_twitter_user_timeline', ''),
+			'#size' => '20',
+			'#description' => 'Twitter username',
+			'#maxlength' => '20',
+			'#required' => '0',
+		);
+
+		$form['apirenderer_twitter']['apirenderer_twitter_count'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Number of Tweets'),
+			'#default_value' => variable_get('apirenderer_twitter_count', ''),
+			'#size' => '3',
+			'#description' => 'Number of tweets to show in your timeline',
+			'#maxlength' => '3',
+			'#required' => '0',
+		);
+	/*
+	//Deprecated FLICKR ADMIN FORM
+	$form['apirenderer_flickr'] = array(
+		'#collapsed' => '0',
+		'#type' => 'fieldset',
+		'#collapsible' => '1',
+		'#title' => t('Flickr API Settings'),
+	);
+		$form['apirenderer_flickr']['apirenderer_flickr_key'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Access Key for the Flickr blocks.'),
+			'#default_value' => variable_get('apirenderer_facebook_token', ''),
+			'#size' => '60',
+			'#description' => 'An access key is required to pull Flickr data.',
+			'#maxlength' => '60',
+			'#required' => '0',
+		);
+		$form['apirenderer_flickr']['apirenderer_flickr_short_default_results'] = array(
+			'#type' => 'textfield',
+			'#title' => t('Default Results Per Page'),
+			'#default_value' => variable_get('apirenderer_flickr_short_default_results', '5'),
+			'#size' => '2',
+			'#description' => 'How many results you would prefer on the short / sidebar-sized Flickr API display. Max: 20.',
+			'#element_validate' => array(
+				'element_validate_integer_positive'
+			),
+			'#required' => '0',
+		);
+	*/
+	//$form['#attached']['js'][] = array(
+	//	'data' => drupal_get_path('module', 'apirenderer') . '/js/apirenderer.js',
+	//	'type' => 'file',
+	//);
+	$form['#attached']['js'] = array(
+		drupal_get_path('module', 'apirenderer') . '/js/apirenderer.js',
+	);
+	return system_settings_form($form);
+}
+
+/**
+ * Implements validation from the Form API. In this module, this is used to pull the initial data.
+ *
+ * @param $form.00000000000000000000000000
+ *   A structured array containing the elements and properties of the form.
+ * @param $form_state
+ *   An array that stores information about the form's current state
+ *   during processing.
+ */
+function apirenderer_form_validate($form, &$form_state) {
+	$proxy_address = check_plain(trim($form_state['values']['apirenderer_proxy']));
+	$propublica_key = check_plain(trim($form_state['values']['apirenderer_propublica_key']));
+	$propublica_id = check_plain(trim($form_state['values']['apirenderer_propublica_id']));
+	$propublica_results = check_plain(trim($form_state['values']['apirenderer_propublica_default_results']));
+	$eventbrite_key = check_plain(trim($form_state['values']['apirenderer_eventbrite_key']));
+	$eventbrite_noEvents = check_plain(trim($form_state['values']['apirenderer_eventbrite_noevents']));
+	$instagram_token = check_plain(trim($form_state['values']['apirenderer_instagram_gallery_token']));
+	$instagram_results = check_plain(trim($form_state['values']['apirenderer_instagram_gallery_short_default_results']));
+	$facebook_token = check_plain(trim($form_state['values']['apirenderer_facebook_token']));
+	$facebook_id = check_plain(trim($form_state['values']['apirenderer_facebook_id']));
+	$facebook_results = check_plain(trim($form_state['values']['apirenderer_facebook_album_short_default_results']));
+	$facebook_mlength = check_plain(trim($form_state['values']['apirenderer_facebook_feed_short_message_length']));
+	$twitter_consumer_key = check_plain(trim($form_state['values']['apirenderer_twitter_consumer_key']));
+	$twitter_consumer_key_secret = check_plain(trim($form_state['values']['apirenderer_twitter_consumer_key_secret']));
+	$twitter_oauth_access_token = check_plain(trim($form_state['values']['apirenderer_twitter_oauth_access_token']));
+	$twitter_oauth_access_token_secret = check_plain(trim($form_state['values']['apirenderer_twitter_oauth_access_token_secret']));
+	$twitter_user_timeline = check_plain(trim($form_state['values']['apirenderer_twitter_user_timeline']));
+	$twitter_count = check_plain(trim($form_state['values']['apirenderer_twitter_count']));
+
+	//Now that the variables are pulled in, this will validate each in turn.
+	//Validate PROXY
+	if (!empty($proxy_address)) {
+		variable_set('apirenderer_proxy', $proxy_address);
+	}
+	//Validate PROPUBLICA
+	if (!empty($propublica_key) && !empty($propublica_id)) {
+		if (!is_numeric($propublica_results) || $propublica_results <= 0 || $propublica_results > 50) {
+			form_set_error('apirenderer_propublica_default_results', t('Please enter a valid number.'));
+		}
+		else {
+			$dataResult = getDataPropublica($propublica_key, $propublica_id);
+			if ($dataResult !== true) {
+				form_set_error('apirenderer_propublica', t("Propublica Error: $dataResult"));
+			}
+		}
+	}
+	//Validate EVENTBRITE
+	if (!empty($eventbrite_key)) {
+		$dataResult = getDataEventbrite($eventbrite_key, $eventbrite_noEvents);
+		if ($dataResult !== true) {
+			form_set_error('apirenderer_eventbrite', t("Eventbrite Error: $dataResult"));
+		}
+	}
+	//Validate Instagram
+	if (!empty($instagram_token)) {
+		if (!is_numeric($instagram_results) || $instagram_results <= 0 || $instagram_results > 20) {
+			form_set_error('apirenderer_instagram_gallery_short_default_results', t("Please enter a valid number."));
+		}
+		else {
+			$dataResult = getDataInstagram($instagram_token);
+			if ($dataResult !== true) {
+				form_set_error('apirenderer_instagram', t("Instagram Error: $dataResult"));
+			}
+		}
+	}
+	//Validate FACEBOOK
+	if (!empty($facebook_token) && !empty($facebook_id)) {
+		if (!is_numeric($facebook_results) || $facebook_results <= 0 || $facebook_results > 20 || !is_numeric($facebook_mlength) || $facebook_mlength <= 0) {
+			form_set_error('apirenderer_facebook_album_short_default_results', t("Please enter a valid number."));
+		}
+		else {
+			//$dataResultAl = getDataFacebook($facebook_token, $facebook_id, 'albums');
+			//if ($dataResultAl !== true) {
+			//	form_set_error('apirenderer_facebook', t("Facebook Album Error: $dataResultAl"));
+			//}
+			$dataResultFe = getDataFacebook($facebook_token, $facebook_id, 'feed');
+			if ($dataResultFe !== true) {
+				form_set_error('apirenderer_facebook', t("Facebook Feed Error: $dataResultFe"));
+			}
+		}
+	}
+}
+
+/**
+ * Implements hook_block_view().
+ *
+ * Prepares the contents of the block.
+ */
+function apirenderer_block_view($delta = '') {
+	switch ($delta) {
+		case 'eventbrite':
+			$block['content'] = apirenderer_eventbrite_contents('full');
+			break;
+		case 'eventbritesingle':
+			$block['content'] = apirenderer_eventbrite_contents('short');
+			break;
+		case 'facebook_album':
+			$block['content'] = apirenderer_facebook_contents('full', 'albums');
+			break;
+		case 'facebook_album_short':
+			$results = variable_get("apirenderer_facebook_album_short_default_results", "1");
+			$block['content'] = apirenderer_facebook_contents('short', 'albums', $results);
+			break;
+		case 'facebook_feed':
+			$block['content'] = apirenderer_facebook_contents('full', 'feed');
+			break;
+		case 'facebook_feed_short':
+			$results = variable_get("apirenderer_facebook_feed_short_default_results", "1");
+			$block['content'] = apirenderer_facebook_contents('short', 'feed', $results);
+			break;
+		case 'twitter_feed':
+			$block['content'] = apirenderer_twitter_content();
+			break;
+	/*
+		case 'flickr':
+			$block['content'] = apirenderer_flickr_contents('full');
+			break;
+		case 'flickr_short':
+			$results = variable_get("apirenderer_flickr_short_default_results", "20");
+			$block['content'] = apirenderer_flickr_contents('short', $results);
+			break;
+	*/
+		case 'instagram_gallery':
+			$block['content'] = apirenderer_instagram_gallery_contents('full');
+			break;
+		case 'instagram_gallery_short':
+			$results = variable_get("apirenderer_instagram_gallery_short_default_results", "1");
+			$block['content'] = apirenderer_instagram_contents('short', $results);
+			break;
+		case 'propublica':
+			$results = variable_get("apirenderer_propublica_default_results", "20");
+			$block['content'] = apirenderer_propublica_contents($results);
+			break;
+	}
+	return $block;
+}
+
+/**
+ * Cron updating functions (updates with cron run). Essentially causes the database to rebuild the selected APIs every so often.
+ */
+function apirenderer_cron() {
+	$propublicaID = variable_get('apirenderer_propublica_id');
+	$propublicaKey = variable_get('apirenderer_propublica_key');
+	$eventbriteKey = variable_get('apirenderer_eventbrite_key');
+	$eventbriteMessage = variable_get('apirenderer_eventbrite_noevents');
+	$instagramToken = variable_get('apirenderer_instagram_gallery_token');
+	$facebookID = variable_get('apirenderer_facebook_id');
+	$facebookToken = variable_get('apirenderer_facebook_token');
+	$queue = DrupalQueue::get('apirenderer');
+	//Checks to see what's actually set.
+	if ($propublicaKey && $propublicaID && $propublicaResults) {
+		$vars['propublicaKey'] = $propublicaKey;
+		$vars['propublicaID'] = $propublicaID;
+	}
+	if ($eventbriteKey && $eventbriteMessage) {
+		$vars['eventbriteKey'] = $eventbriteKey;
+		$vars['eventbriteMessage'] = $eventbriteMessage;
+	}
+	if ($instagramToken) {
+		$vars['instagramToken'] = $instagramToken;
+	}
+	if ($facebookToken && $facebookID) {
+		$vars['facebookToken'] = $facebookToken;
+		$vars['facebookID'] = $facebookID;
+	}
+	//Passes what is set to the cron queue.
+	$queue->createItem($vars);
+}
+
+function apirenderer_cron_queue_info() {
+	//Based on the previous variables set, will call the refresh function.
+	$queues['apirenderer'] = array (
+		'worker callback' => 'apirendererRefresh',
+		'time' => 30, //NOTE: Unsure as to how fast this actually is. Drupal documentation suggest that this may be every thirty seconds.
+	);
+	return $queues;
+}
+
+/************************************
+            CORE FUNCTIONS
+ ************************************/
+
+/**
+ * MAKE REQUEST FUNCTION
+ *
+ * This is the core of this module - it allows you to pass the URL and any relevant headers to a generic CURL call, which returns one of two possibilities: The unparsed JSON String or a curl_error string. Any additions to this module should keep those two possibilites in mind.
+ *
+ * $headers is optional, so it does not need to be defined if it isn't being used.
+ */
+function makeRequest($url, $headers = array()) {
+	$proxy = variable_get('apirenderer_proxy', FALSE);
+	//Initialize the CURL request.
+	$ch = curl_init();
+	//Set the options via an array. For now, these can be generic to all APIs, but a specialized makeRequest may be needed if we come into contact with a really weird one.
+	$options = array(
+		CURLOPT_URL => $url,
+		CURLOPT_RETURNTRANSFER => true,
+		CURLOPT_HTTPHEADER => $headers,
+		CURLOPT_CONNECTTIMEOUT => 15,
+		CURLOPT_TIMEOUT => 15,
+	);
+	if ($proxy !== FALSE) {
+		$options[CURLOPT_PROXY] = $proxy;
+	}
+	curl_setopt_array($ch, $options);
+	//Execute the CURL request.
+	$results = curl_exec($ch);
+	//If the results are a failure, return the error.
+	if ($results === false) {
+		$results = curl_error($ch);
+	}
+	//Close the CURL request and return the results.
+	curl_close($ch);
+	return $results;
+}
+
+/**
+ * TIME ELAPSED FUNCTION
+ *
+ * A custom function that converts a timestamp string into a time ago function.
+ * Courtesy of Glavić on stackoverflow: https://stackoverflow.com/a/18602474
+ *
+ */
+
+function time_elapsed_string($datetime, $full = false) {
+    $now = new DateTime;
+    $ago = new DateTime($datetime);
+    $diff = $now->diff($ago);
+
+    $diff->w = floor($diff->d / 7);
+    $diff->d -= $diff->w * 7;
+
+    $string = array(
+        'y' => 'year',
+        'm' => 'month',
+        'w' => 'week',
+        'd' => 'day',
+        'h' => 'hour',
+        'i' => 'minute',
+        's' => 'second',
+    );
+    foreach ($string as $k => &$v) {
+        if ($diff->$k) {
+            $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? 's' : '');
+        } else {
+            unset($string[$k]);
+        }
+    }
+
+    if (!$full) $string = array_slice($string, 0, 1);
+    return $string ? implode(', ', $string) . ' ago' : 'just now';
+}
+
+
+
+/**
+ * APIRENDERER REFRESH FUNCTION
+ *
+ * Will refresh all API data in order to have the most up-to-date details of each. $vars is passed to this from hook_cron.
+ *
+ * Returns nothing.
+ */
+function apirendererRefresh($vars) {
+	foreach($vars as $key => $val) {
+		if (($key == 'propublicaKey') && ($val)) {
+			$dataResult = getDataPropublica($vars['propublicaKey'], $vars['propublicaID']);
+			if ($dataResult !== true) {
+				drupal_set_message(t($dataResult), 'warning');
+			}
+		}
+		if (($key == 'eventbriteKey') && ($val)) {
+			$dataResult = getDataEventbrite($vars['eventbriteKey'], $vars['eventbriteMessage']);
+			if ($dataResult !== true) {
+				drupal_set_message(t($dataResult), 'warning');
+			}
+		}
+		if (($key == 'instagramToken') && ($val)) {
+			$dataResult = getDataInstagram($vars['instagramToken']);
+			if ($dataResult !== true) {
+				drupal_set_message(t($dataResult), 'warning');
+			}
+		}
+		if (($key == 'facebookToken') && ($val)) {
+			$error = '';
+			$dataResultAl = getDataFacebook($vars['facebookToken'], $vars['facebookID'], 'albums');
+			if ($dataResultAl !== true) {
+				$error .= $dataResultAl;
+			}
+			$dataResultFe = getDataFacebook($vars['facebookToken'], $vars['facebookID'], 'feed');
+			if ($dataResultFe !== true) {
+				$error .= $dataResultFe;
+			}
+			if ($error != '') {
+				drupal_set_message(t($error), 'warning');
+			}
+		}
+	}
+}
+
+/************************************
+            EVENTBRITE API
+ ************************************/
+
+/**
+ * GET DATA EVENTBRITE FUNCTION
+ *
+ * Gets the data for eventbrite and sets it into a variable.
+ *
+ * If successful, returns TRUE. Otherwise, returns an error message.
+ */
+function getDataEventbrite($key, $defaultMessage) {
+	//Initial setup.
+	$return = '';
+	$events = array();
+	$error = '';
+	//create the event box.
+	$url = "https://www.eventbriteapi.com/v3/users/me/owned_events/?order_by=start_asc&show_series_parent=on&status=live&token=$key";
+	$result = makeRequest($url);
+	$resultParsed = json_decode($result, true);
+	//Check if the returned value was a JSON string or not; if it wasn't, it is a CURL error.
+	if (json_last_error() != JSON_ERROR_NONE) {
+		$error = "Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+	}
+	//Check if there's a status_code, which only appears if the request failed.
+	else if (array_key_exists('status_code', $resultParsed)) {
+		$error = "{$resultParsed['status_code']} {$resultParsed['error']}: {$resultParsed['error_description']}";
+	}
+	//Check if no events were found.
+	else if ($resultParsed['pagination']['object_count'] == '0') {
+		//Error message for no events being found.
+		$events = '<div class="text-center event"><br />' . variable_get('apirenderer_eventbrite_noevents', 'Currently there are no planned events for the near future.') . '<br /> <br /></div>';
+	}
+	else {
+		//Assuming events were found, get their data and format it.
+		foreach ($resultParsed['events'] as $data) {
+			$url = '';
+			$img = '';
+			$free = '';
+			$date = '';
+			$title = '';
+			$location = '';
+			$url = $data['url'];
+			$img = $data['logo']['url'];
+			if ($data['is_free'] == true) {
+				$free = 'free';
+			}
+			$date = parseEventbriteDate($data['start']['local']);
+			$title = $data['name']['html'];
+			if ($data['venue_id']) {
+				$location = getEventbriteVenue($data['venue_id'], $user);
+			}
+			else {
+				$location = 'Location not set.';
+			}
+			$events[] = theme(
+				'apirenderer_eventbrite_event',
+				array(
+					'url' => $url,
+					'img' => $img,
+					'free' => $free,
+					'date' => $date,
+					'title' => $title,
+					'location' => $location
+				)
+			);
+		}
+	}
+	//Final theme and return value.
+	if ($error == '') {
+		variable_set('eventbrite_data', $events);
+		$return = TRUE;
+	}
+	else {
+		$return = $error;
+	}
+	return $return;
+}
+
+/**
+ * API RENDERER EVENTBRITE CONTENTS FUNCTION
+ *
+ * Generates block contents for the eventbrite API block.
+ *
+ * Returns: The fully themed HTML.
+ */
+function apirenderer_eventbrite_contents($block) {
+	$html = '';
+	$data = variable_get('eventbrite_data', FALSE);
+	if ($data == FALSE) {
+		$html = theme(
+			'apirenderer_error',
+			array(
+				'message' => 'No data was found!'
+			)
+		);
+	}
+	else if ($block == 'full') {
+		$dataFull = '';
+		if (is_array($data)) {
+			foreach ($data as $event) {
+				$dataFull .= $event;
+			}
+		}
+		else {
+			$dataFull .= $data;
+		}
+		$html = theme(
+			'apirenderer_eventbrite_eventbox',
+			array(
+				'contentEvents' => $dataFull
+			)
+		);
+	}
+	else if ($block == 'short') {
+		$html = theme(
+			'apirenderer_eventbrite_eventbox',
+			array(
+				'contentEvents' => $data[0]
+			)
+		);
+	}
+	return $html;
+}
+
+/**
+ * PARSE EVENTBRITE DATE FUNCTION
+ *
+ * Function to turn the eventbrite date string into a useful chunk of data from its relatively useless string value, YYYY-MM-DDTHH:MMSS. Year, Month, Day, Hour, Minute, Second, in that order. The T is always just a T.
+ *
+ * Returns: The formatted and themed HTML for the date.
+ */
+function parseEventbriteDate($date) {
+	$formatted = '';
+	$charDate = str_split($date);
+	$year = ($charDate[0] . $charDate[1] . $charDate[2] . $charDate[3]);
+	$monthNum = ($charDate[5] . $charDate[6]);
+	$month = '';
+	switch ($monthNum) {
+		case "01":
+			$month = "January";
+			break;
+		case "02":
+			$month = "February";
+			break;
+		case "03":
+			$month = "March";
+			break;
+		case "04":
+			$month = "April";
+			break;
+		case "05":
+			$month = "May";
+			break;
+		case "06":
+			$month = "June";
+			break;
+		case "07":
+			$month = "July";
+			break;
+		case "08":
+			$month = "August";
+			break;
+		case "09":
+			$month = "September";
+			break;
+		case "10":
+			$month = "October";
+			break;
+		case "11":
+			$month = "November";
+			break;
+		case "12":
+			$month = "December";
+			break;
+	}
+	if ($charDate[8] == '0') {
+		$day = $charDate[9];
+	}
+	else {
+		$day = ($charDate[8] . $charDate[9]);
+	}
+	if ($charDate[8] == '1') {
+		$day .= 'th';
+	}
+	else {
+		switch ($charDate[9]) {
+			case '1':
+				$day .= 'st';
+				break;
+			case '2':
+				$day .= 'nd';
+				break;
+			case '3':
+				$day .= 'rd';
+				break;
+			default:
+				$day .= 'th';
+		}
+	}
+	$hour = ($charDate[11] . $charDate[12]);
+	if ((int)$hour > 12) {
+		$hour = ((int)$hour - 12);
+		$half = 'PM';
+	}
+	else {
+		if ($charDate[11] == '0') {
+			$hour = $charDate[12];
+		}
+		$half = 'AM';
+	}
+	$minute = ($charDate[14] . $charDate[15]);
+	$formatted = theme(
+		'apirenderer_eventbrite_date',
+		array(
+			'month' => $month,
+			'day' => $day,
+			'year' => $year,
+			'hour' => $hour,
+			'minute' => $minute,
+			'half' => $half
+		)
+	);
+	return $formatted;
+}
+
+/**
+ * GET EVENTBRITE VENUE FUNCTION
+ *
+ * Function to make another CURL request and try to get the venue's location for each event.
+ *
+ * Returns: The basic data of the location - its name and address.
+ */
+function getEventbriteVenue($id, $key) {
+	$venueUrl = "https://www.eventbriteapi.com/v3/venues/$id/?token=$key";
+	$headers = array();
+	$result = makeRequest($venueUrl, $headers);
+	$resultParsed = json_decode($result, true);
+	if ((json_last_error() == JSON_ERROR_NONE) && (!array_key_exists('status_code', $resultParsed))) {
+		$location = $resultParsed['name'];
+		$location .= '<br />';
+		$location .= $resultParsed['address']['localized_address_display'];
+	}
+	else if (json_last_error() != JSON_ERROR_NONE) {
+		$location = "Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+	}
+	else if ($resultParsed['status_code'] == '404') {
+		$location = 'Location not set.';
+	}
+	else if ($resultParsed['status_code'] == '401') {
+		$location = "{$resultParsed['status_code']} {$resultParsed['error']}: {$resultParsed['error_description']}";
+	}
+	else {
+		$location = "{$resultParsed['status_code']} {$resultParsed['error']}: {$resultParsed['error_description']}";
+	}
+	return $location;
+}
+
+/************************************
+         FACEBOOK GRAPH API
+ ************************************/
+
+/**
+ * GET DATA FACEBOOK FUNCTION
+ *
+ * Gets the data for Facebook and sets it into a variable.
+ *
+ * If successful, returns TRUE. Otherwise, returns an error message.
+ */
+function getDataFacebook($token, $id, $endpoint) {
+	//1016110801799039|7fK3_BQ0EAlCTlx64oZrOFC8aso is our usual key.
+	//Initial variable setup.
+	$return = '';
+	$content = '';
+	$error = '';
+	//Make the appropriate requests.
+	if ($endpoint == 'albums') {
+		//Construct the URL.
+		$url = "https://graph.facebook.com/$id/albums?fields=link,count,name,type,picture&access_token=$token";
+		//Make the request.
+		$result = makeRequest($url);
+		$resultParsed = json_decode($result, true);
+		//Work with the data returned.
+		if (json_last_error() != JSON_ERROR_NONE) {
+			$error = "Facebook Albums Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+		}
+		else if (array_key_exists('error', $resultParsed)) {
+			$error = "Facebook Albums Error {$resultParsed['error']['code']} {$resultParsed['error']['type']}: {$resultParsed['error']['message']}";
+		}
+		//Return value setting.
+		if ($error == '') {
+			variable_set('facebook_album_data', $result);
+			$return = TRUE;
+		}
+		else {
+			$return = $error;
+		}
+	}
+	else if ($endpoint == 'feed') {
+		//Construct the URL.
+		$url = "https://graph.facebook.com/$id/posts?fields=from,message,icon,id,permalink_url,picture,type,story,description,source,link,created_time,caption&access_token=$token";
+		//Make the request.
+		$result = makeRequest($url);
+		$resultParsed = json_decode($result, true);
+		//Work with the data returned.
+		if (json_last_error() != JSON_ERROR_NONE) {
+			$error = "Facebook Feed Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+		}
+		else if (array_key_exists('error', $resultParsed)) {
+			$error = "Facebook Feed Error {$resultParsed['error']['code']} {$resultParsed['error']['type']}: {$resultParsed['error']['message']}";
+		}
+		//Return value setting.
+		if ($error == '') {
+			variable_set('facebook_feed_data', $result);
+			$return = TRUE;
+		}
+		else {
+			$return = $error;
+		}
+	}
+	return $return;
+}
+
+/**
+ * API RENDERER FACEBOOK ALBUM CONTENTS FUNCTION
+ *
+ * Function to create the contents of the Facebook Album Block.
+ *
+ * Returns: The themed block of the gallery.
+ */
+function apirenderer_facebook_contents($block, $endpoint, $results = 1) {
+	$html = '';
+	$content = '';
+	if ($endpoint == 'albums') {
+		$data = variable_get('facebook_album_data', FALSE);
+		if ($data == FALSE) {
+			$html = theme(
+				'apirenderer_error',
+				array(
+					'message' => 'No data was found!'
+				)
+			);
+		}
+		else if ($block == 'full') {
+			$parsed = json_decode($data, true);
+			//$display_count = 0;
+			foreach($parsed['data'] as $album) {
+				$albumid = check_plain($album["id"]);
+				$count = check_plain($album["count"]);
+				$title = check_plain($album["name"]) . " ($count)";
+				$cover = check_plain($album["picture"]["data"]["url"]);
+				$link = $album["link"];
+				$content .= theme(
+					'photo_gallery_item',
+					array(
+						'title' => $title,
+						'albumid' => $albumid,
+						'cover' => $cover,
+						'colorbox' => "",
+						'target' => "_blank",
+						'type' => "facebook",
+						'summary' => "",
+						'flickrembed' => "",
+						'link' => $link,
+					)
+				);
+				//if (($display_count+1) % 3 == 0) {
+				//	$content .= '<div class="clear"></div>';
+				//}
+				//$display_count++;
+			}
+			$html = theme(
+				'photo_gallery',
+				array(
+					'content' => $content
+				)
+			);
+		}
+		else if ($block == 'short') {
+			$link = variable_get('apirenderer_facebook_album_short_main_node', '');
+			$parsed = json_decode($data, true);
+			for ($x = 0; $x < $results; $x++) {
+				$albumid = check_plain($parsed[$x]["id"]);
+				$count = check_plain($parsed[$x]["count"]);
+				$title = check_plain($parsed[$x]["name"]) . " ($count)";
+				$cover = check_plain($parsed[$x]["picture"]["data"]["url"]);
+				$link = $parsed[$x]["link"];
+				$content .= theme(
+					'photo_gallery_item',
+					array(
+						'title' => $title,
+						'albumid' => $albumid,
+						'cover' => $cover,
+						'colorbox' => "",
+						'target' => "_blank",
+						'type' => "facebook",
+						'summary' => "",
+						'flickrembed' => "",
+						'link' => $link,
+					)
+				);
+				if (($display_count+1) % 3 == 0) {
+					$content .= '<div class="clear"></div>';
+				}
+				$display_count++;
+			}
+			$html = theme(
+				'photo_gallery_sidebar',
+				array(
+					'title' => '',
+					'content' => $content,
+					'page_link' => $link
+				)
+			);
+		}
+	}
+	else if ($endpoint == 'feed') {
+		$data = variable_get('facebook_feed_data', FALSE);
+		$messageLength = variable_get('apirenderer_facebook_feed_short_message_length', FALSE);
+		if ($data == FALSE) {
+			$html = theme(
+				'apirenderer_error',
+				array(
+					'message' => 'No data was found!'
+				)
+			);
+		}
+		else if ($block == 'full') {
+			$parsed = json_decode($data, true);
+			foreach($parsed["data"] as $item) {
+				$extras = false;
+				$readMore = false;
+				$picture = '';
+				$caption = '';
+				$postLink = '';
+				$link = '';
+				$icon = '';
+				$time = '';
+				$timeData = $item['created_time'];
+				$timeDataChar = str_split($timeData);
+				//Prepare for the absolute worst datetime processing ever done. I'm 100% certain there's a built-in way to do this. I'm also 0% certain how.
+				$year = $timeDataChar[0] . $timeDataChar[1] . $timeDataChar[2] . $timeDataChar[3];
+				$month = '';
+				switch ($timeDataChar[5] . $timeDataChar[6]) {
+					case '01':
+						$month = "January";
+						break;
+					case '02':
+						$month = "February";
+						break;
+					case '03':
+						$month = "March";
+						break;
+					case '04':
+						$month = "April";
+						break;
+					case '05':
+						$month = "May";
+						break;
+					case '06':
+						$month = "June";
+						break;
+					case '07':
+						$month = "July";
+						break;
+					case '08':
+						$month = "August";
+						break;
+					case '09':
+						$month = "September";
+						break;
+					case '10':
+						$month = "October";
+						break;
+					case '11':
+						$month = "November";
+						break;
+					case '12':
+						$month = "December";
+						break;
+				}
+				$day = '';
+				if ($timeDataChar[8] == 0) {
+					if ($timeDataChar[9] == '1') {
+						$day .= '1st';
+					}
+					else if ($timeDataChar[9] == '2') {
+						$day .= '2nd';
+					}
+					else if ($timeDataChar[9] == '3') {
+						$day .= '3rd';
+					}
+					else {
+						$day .= $timeDataChar[9];
+						$day .= 'th';
+					}
+				}
+				else {
+					$day .= $timeDataChar[8] . $timeDataChar[9];
+					if ($timeDataChar[8] == '1') {
+						$day .= 'th';
+					}
+					else {
+						if ($timeDataChar[9] == '1') {
+							$day .= 'st';
+						}
+						else if ($timeDataChar[9] == '2') {
+							$day .= 'nd';
+						}
+						else if ($timeDataChar[9] == '3') {
+							$day .= 'rd';
+						}
+						else {
+							$day .= 'th';
+						}
+					}
+				}
+				$hour = $timeDataChar[11] . $timeDataChar[12];
+				$hournum = (int)$hour;
+				if ($hournum > 12) {
+					$half = 'PM';
+					$hour = $hournum - 12;
+				}
+				else {
+					$half = 'AM';
+					$hour = $hournum;
+				}
+				$minute = $timeDataChar[14] . $timeDataChar[15];
+				$time = "$month $day, $year, at $hour:$minute $half";
+				$id = $item["id"];
+				$fbid = $item["from"]["id"];
+				$iconURL = "https://graph.facebook.com/$fbid/picture?redirect=false";
+				$icondata = makeRequest($iconURL);
+				if ($icondata != FALSE) {
+					$iconparsed = json_decode($icondata,true);
+					foreach ($iconparsed as $data) {
+						$icon .= $data["url"];
+					}
+				}
+				else {
+					$icon = '';
+				}
+				if (isset($item["message"])) {
+					$message = $item["message"];
+				}
+				else if (isset($item["story"])) {
+					$message = $item["story"];
+				}
+				$name = $item["from"]["name"];
+				$permalink = $item["permalink_url"];
+				$postType = $item["type"];
+				//Determine post type and related attributes. Possibilities: {mobile_status_update, created_note, added_photos, added_video, shared_story, created_group, created_event, wall_post, app_created_story, published_story, tagged_in_photo, approved_friend
+				switch($postType) {
+					case 'photo':
+						$extras = true;
+						$picture = $item["picture"];
+						$postLink = $item["link"];
+						$caption = "Click to view full-sized photo on Facebook.";
+						break;
+					case 'video':
+						$extras = true;
+						$postLink = $item["link"];
+						$picture = $item["picture"];
+						$caption = "Click to view video on Facebook.";
+						break;
+					case 'link':
+						$extras = true;
+						$postLink = $item["link"];
+						$picture = $item["picture"];
+						$caption = $item["caption"];
+						break;
+					case 'status':
+						$extras = false;
+						break;
+					case 'event':
+						$extras = true;
+						$postLink = $item["link"];
+						$picture = $item["picture"];
+						$caption = $item["caption"];
+						break;
+				}
+				$newMessage = trimMessage($message, $messageLength);
+				if ($newMessage !== $message) {
+					$message = $newMessage;
+					$readMore = true;
+				}
+				else {
+					$message = $newMessage;
+				}
+				$content .= theme(
+					'apirenderer_feed_item',
+					array(
+						'id' => $id,
+						'name' => $name,
+						'message' => $message,
+						'permalink' => $permalink,
+						'picture' => $picture,
+						'link' => $postLink,
+						'icon' => $icon,
+						'extras' => $extras,
+						'caption' => $caption,
+						'time' => $time,
+						'story' => $story,
+						'readMore' => $readMore
+					)
+				);
+			}
+			$html = theme(
+				'photo_gallery',
+				array(
+					'content' => $content
+				)
+			);
+		}
+		else if ($block == 'short') {
+			$link = variable_get('apirenderer_facebook_album_short_main_node', '');
+			$parsed = json_decode($data, true);
+			for ($x = 0; $x < $results; $x++) {
+				$extras = false;
+				$readMore = false;
+				$picture = '';
+				$caption = '';
+				$postLink = '';
+				$link = '';
+				$icon = '';
+				$time = '';
+				$timeData = $parsed["data"][$x]['created_time'];
+				$timeDataChar = str_split($timeData);
+				//Prepare for the absolute worst datetime processing ever done. I'm 100% certain there's a built-in way to do this. I'm also 0% certain how.
+				$year = $timeDataChar[0] . $timeDataChar[1] . $timeDataChar[2] . $timeDataChar[3];
+				$month = '';
+				switch ($timeDataChar[5] . $timeDataChar[6]) {
+					case '01':
+						$month = "January";
+						break;
+					case '02':
+						$month = "February";
+						break;
+					case '03':
+						$month = "March";
+						break;
+					case '04':
+						$month = "April";
+						break;
+					case '05':
+						$month = "May";
+						break;
+					case '06':
+						$month = "June";
+						break;
+					case '07':
+						$month = "July";
+						break;
+					case '08':
+						$month = "August";
+						break;
+					case '09':
+						$month = "September";
+						break;
+					case '10':
+						$month = "October";
+						break;
+					case '11':
+						$month = "November";
+						break;
+					case '12':
+						$month = "December";
+						break;
+				}
+				$day = '';
+				if ($timeDataChar[8] == 0) {
+					if ($timeDataChar[9] == '1') {
+						$day .= '1st';
+					}
+					else if ($timeDataChar[9] == '2') {
+						$day .= '2nd';
+					}
+					else if ($timeDataChar[9] == '3') {
+						$day .= '3rd';
+					}
+					else {
+						$day .= $timeDataChar[9];
+						$day .= 'th';
+					}
+				}
+				else {
+					$day .= $timeDataChar[8] . $timeDataChar[9];
+					if ($timeDataChar[8] == '1') {
+						$day .= 'th';
+					}
+					else {
+						if ($timeDataChar[9] == '1') {
+							$day .= 'st';
+						}
+						else if ($timeDataChar[9] == '2') {
+							$day .= 'nd';
+						}
+						else if ($timeDataChar[9] == '3') {
+							$day .= 'rd';
+						}
+						else {
+							$day .= 'th';
+						}
+					}
+				}
+				$hour = $timeDataChar[11] . $timeDataChar[12];
+				$hournum = (int)$hour;
+				if ($hournum > 12) {
+					$half = 'PM';
+					$hour = $hournum - 12;
+				}
+				else {
+					$half = 'AM';
+					$hour = $hournum;
+				}
+				$minute = $timeDataChar[14] . $timeDataChar[15];
+				$time = "$month $day, $year, at $hour:$minute $half";
+				$id = $parsed["data"][$x]["id"];
+				$fbid = $parsed["data"][$x]["from"]["id"];
+				$iconURL = "https://graph.facebook.com/$fbid/picture?redirect=false";
+				$icondata = makeRequest($iconURL);
+				if ($icondata != FALSE) {
+					$iconparsed = json_decode($icondata,true);
+					foreach ($iconparsed as $data) {
+						$icon .= $data["url"];
+					}
+				}
+				else {
+					$icon = '';
+				}
+				if (isset($parsed["data"][$x]["message"])) {
+					if (isset($parsed["data"][$x]["story"])) {
+						$story = $parsed["data"][$x]["story"];
+					}
+					else {
+						$story = '';
+					}
+					$message = $parsed["data"][$x]["message"];
+				}
+				else {
+					if (isset($parsed["data"][$x]["story"])) {
+						$story = $parsed["data"][$x]["story"];
+					}
+					else {
+						$story = '';
+					}
+					$message = $parsed["data"][$x]["description"];
+				}
+				$name = $parsed["data"][$x]["from"]["name"];
+				$permalink = $parsed["data"][$x]["permalink_url"];
+				$postType = $parsed["data"][$x]["type"];
+				//Determine post type and related attributes. Possibilities: {mobile_status_update, created_note, added_photos, added_video, shared_story, created_group, created_event, wall_post, app_created_story, published_story, tagged_in_photo, approved_friend
+				switch($postType) {
+					case 'photo':
+						$extras = true;
+						$picture = $parsed["data"][$x]["picture"];
+						$postLink = $parsed["data"][$x]["link"];
+						$caption = "Click to view full-sized photo on Facebook.";
+						break;
+					case 'video':
+						$extras = true;
+						$postLink = $parsed["data"][$x]["link"];
+						$picture = $parsed["data"][$x]["picture"];
+						$caption = "Click to view video on Facebook.";
+
+						break;
+					case 'link':
+						$extras = true;
+						$postLink = $parsed["data"][$x]["link"];
+						$picture = $parsed["data"][$x]["picture"];
+						if(isset($parsed["data"][$x]["caption"])) {
+							$caption = $parsed["data"][$x]["caption"];
+						}
+						else {
+							$caption = "Click to view shared link.";
+						}
+						break;
+					case 'status':
+						$extras = false;
+						break;
+					case 'event':
+						$extras = true;
+						$postLink = $parsed["data"][$x]["link"];
+						$picture = $parsed["data"][$x]["picture"];
+						$caption = $parsed["data"][$x]["caption"];
+						break;
+				}
+				$newMessage = trimMessage($message, $messageLength);
+				if ($newMessage !== $message) {
+					$message = $newMessage;
+					$readMore = true;
+				}
+				else {
+					$message = $newMessage;
+				}
+				$content .= theme(
+					'apirenderer_feed_item',
+					array(
+						'id' => $id,
+						'name' => $name,
+						'message' => $message,
+						'permalink' => $permalink,
+						'picture' => $picture,
+						'link' => $postLink,
+						'icon' => $icon,
+						'extras' => $extras,
+						'caption' => $caption,
+						'time' => $time,
+						'story' => $story,
+						'readMore' => $readMore
+					)
+				);
+			}
+			$html = theme(
+				'photo_gallery_sidebar',
+				array(
+					'title' => 'Facebook',
+					'content' => $content,
+					'page_link' => $link
+				)
+			);
+		}
+	}
+	else {
+		$data = theme(
+			'apirenderer_error',
+			array(
+				'message' => 'No data was found!'
+			)
+		);
+	}
+	return $html;
+}
+function trimMessage($message, $length) {
+	$return = '';
+	if (strlen($message) > $length) {
+		$return = substr($message, 0, strpos(wordwrap($message, $length), "\n"));
+	}
+	else {
+		$return = $message;
+	}
+	return $return;
+}
+
+/************************************
+             FLICKR API
+ ************************************/
+
+/**
+ * GET DATA FLICKR FUNCTION
+ *
+ * Gets the data for Flickr and sets it into a variable.
+ *
+ * If successful, returns TRUE. Otherwise, returns an error message.
+ */
+function getDataFlickr($key) {
+	$return = '';
+	$content = '';
+	$error = '';
+	//Construct the URL.
+	$url = "https://api.flickr.com/services/rest/?method=flickr.photos.getRecent&format=json&api_key=$key";
+	//Make the request.
+	$result = makeRequest($url);
+	$resultParsed = json_decode($result, true);
+	//Work with the data returned.
+	if (json_last_error() != JSON_ERROR_NONE) {
+		$error = "Flickr Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+	}
+	else if (array_key_exists('error', $resultParsed)) {
+		$error = "Flickr Error {$resultParsed['error']['code']} {$resultParsed['error']['type']}: {$resultParsed['error']['message']}";
+	}
+	//Return value setting.
+	if ($error == '') {
+		variable_set('flickr_data', $result);
+		$return = TRUE;
+	}
+	else {
+		$return = $error;
+	}
+}
+
+/**
+ * API RENDERER FLICKR CONTENTS FUNCTION
+ *
+ * Function to create the contents of the Flickr Block.
+ *
+ * Returns: The themed block of the gallery.
+ */
+function apirenderer_flickr_contents($block, $results = 1) {
+
+}
+
+/************************************
+        INSTAGRAM GALLERY API
+ ************************************/
+
+/**
+ * GET DATA INSTAGRAM FUNCTION
+ *
+ * Gets the data for Instagram and sets it into a variable.
+ *
+ * If successful, returns TRUE. Otherwise, returns an error message.
+ */
+function getDataInstagram($token) {
+	//Initial variable setup.
+	$return = '';
+	$content = '';
+	$error = '';
+	//Construct the URL.
+	$url = "https://api.instagram.com/v1/users/self/media/recent/?access_token=$token";
+	//Make the request.
+	$result = makeRequest($url);
+	$resultParsed = json_decode($result, true);
+	//Work with the data returned.
+	if (json_last_error() != JSON_ERROR_NONE) {
+		$error = "Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+	}
+	else if (array_key_exists('meta', $resultParsed)) {
+		if (array_key_exists('error_code', $resultParsed['meta'])) {
+			$error = "{$resultParsed['meta']['code']} {$resultParsed['meta']['error_type']}: {$resultParsed['meta']['error_message']}";
+		}
+	}
+	//Final return value.
+	if ($error == '') {
+		variable_set('eventbrite_data', $result);
+		$return = TRUE;
+	}
+	else {
+		$return = $error;
+	}
+	return $return;
+}
+
+/**
+ * API RENDERER INSTAGRAM GALLERY CONTENTS FUNCTION
+ *
+ * Function to create the contents of the Instagram Gallery Block.
+ *
+ * Returns: The themed block of the gallery.
+ */
+function apirenderer_instagram_gallery_contents($block, $results = 1) {
+	$html = '';
+	$data = variable_get('instagram_data', FALSE);
+	if ($data == FALSE) {
+		$html = theme(
+			'apirenderer_error',
+			array(
+				'message' => 'No data was found!'
+			)
+		);
+	}
+	else if ($block == 'full') {
+		$content = '';
+		$parsed = json_decode($data, true);
+		foreach($parsed['data'] as $itm) {
+			$albumid = $itm["id"];
+			$title = $itm["caption"]["text"];
+			$cover = $itm["images"]["low_resolution"]["url"];
+			$link = $itm["link"];
+			$content .= theme(
+				'photo_gallery_item',
+				array(
+					'title' => $title,
+					'albumid' => $albumid,
+					'cover' => $cover,
+					'colorbox' => "",
+					'target' => "_blank",
+					'type' => "instagram",
+					'summary' => "",
+					'flickrembed' => "",
+					'link' => $link
+				)
+			);
+		}
+		$html = theme(
+			'photo_gallery',
+			array(
+				'content' => $content
+			)
+		);
+	}
+	else if ($block == 'short') {
+		$link = variable_get('apirenderer_instagram_gallery_short_main_node', '');
+		$content = '';
+		$parsed = json_decode($data, true);
+		for ($x = 0; $x < $results; $x++) {
+			$albumid = $data[$x]["id"];
+			$title = $data[$x]["caption"]["text"];
+			$cover = $data[$x]["images"]["low_resolution"]["url"];
+			$link = $data[$x]["link"];
+			$content .= theme(
+				'photo_gallery_item',
+				array(
+					'title' => $title,
+					'albumid' => $albumid,
+					'cover' => $cover,
+					'colorbox' => "",
+					'target' => "_blank",
+					'type' => "instagram",
+					'summary' => "",
+					'flickrembed' => "",
+					'link' => $link
+				)
+			);
+		}
+		$html = theme(
+			'photo_gallery_sidebar',
+			array(
+				'title' => '',
+				'content' => $content,
+			)
+		);
+	}
+	return $html;
+}
+
+/************************************
+            PROPUBLICA API
+ ************************************/
+
+/**
+ * GET DATA PROPUBLICA FUNCTION
+ *
+ * Gets the data for propublica and sets it into a variable.
+ *
+ * If successful, returns TRUE. Otherwise, returns an error message.
+ */
+function getDataPropublica($key, $id) {
+	//Start the variables for the theme.
+	$return = '';
+	$contentSp = '';
+	$contentCo = '';
+	$contentError = '';
+	//These are the base URLs for making the request. It gets the Congressman's ID and adds it to the URL.
+	$urlSp = "https://api.propublica.org/congress/v1/members/$id/bills/introduced.json";
+	$urlCo = "https://api.propublica.org/congress/v1/members/$id/bills/cosponsored.json";
+	//The header must contain the API key, and thanks to this will be hidden. This must be setup by the user.
+	$headers = array(
+		('X-API-Key: ' . $key),
+	);
+	//Make the actual request. Assuming it returns results, continue as intended.
+	$resultSp = makeRequest($urlSp, $headers);
+	$resultCo = makeRequest($urlCo, $headers);
+	$resultSpParsed = json_decode($resultSp, true);
+	$resultCoParsed = json_decode($resultCo, true);
+	//Verify if the result is actually the JSON data or not.
+	if (json_last_error() != JSON_ERROR_NONE) {
+		$contentError = "Propublica Data failed to decode with the following errors: [$resultSp], [$resultCo]. There is a problem with the SSL configuration or data source. Please contact your web administrator.";
+	}
+	//Verify that the result returned was not a refusal of connection.
+	else if ($resultSpParsed['status'] != 'OK' || $resultCoParsed['status'] != 'OK') {
+		$contentError = "There was an error in retrieving the legislation data. The status codes following were returned: [{$resultSpParsed['status']}] and/or [{$resultCoParsed['status']}]. It is possible that you may have misconfigured the Key or ID.";
+	}
+	else {
+		//First, the Sponsored table. This themes each set of data as a row, then appends it into the content.
+		$contentSp = createPropublicaPages($urlSp, $headers, 'Sp');
+		//Next, the Cosponsored table. This themes each set of data as a row, then appends it into the content.
+		$contentCo = createPropublicaPages($urlCo, $headers, 'Co');
+	}
+	//Finally, determine if the operation was successful, and take appropriate action.
+	if ($contentError == '') {
+		variable_set('propublica_sp_data', $contentSp);
+		variable_set('propublica_co_data', $contentCo);
+		$return = TRUE;
+	}
+	else {
+		$return = $contentError;
+	}
+	return $return;
+}
+
+/**
+ * API RENDERER PROPUBLICA CONTENTS FUNCTION
+ *
+ * Returns block content for the Propublica API.
+ *
+ * Returns: The themed HTML.
+ */
+function apirenderer_propublica_contents($results) {
+	$html = '';
+	$dataSp = variable_get('propublica_sp_data', FALSE);
+	$dataCo = variable_get('propublica_co_data', FALSE);
+	if ($dataSp == FALSE || $dataCo == FALSE) {
+		$html = theme(
+			'apirenderer_error',
+			array(
+				'message' => 'No data was found!'
+			)
+		);
+	}
+	else {
+		$html = theme(
+			'apirenderer_propublica_table',
+			array(
+				'contentSp' => $dataSp,
+				'contentCo' => $dataCo,
+				'results' => $results
+			)
+		);
+	}
+	return $html;
+}
+
+/**
+ * API RENDERER PRO PUBLICA CONTENTS FUNCTION
+ *
+ * Generates block contents for the Pro Publica API block.
+ *
+ * Returns: The various pages which will be placed in the contents.
+ */
+function createPropublicaPages($url, $headers, $table) {
+	$content = '';
+	$notLast = true;
+	$page = 1;
+	while ($notLast) {
+		if ($page == 1) {
+			$urlComplete = $url;
+		}
+		else {
+			$urlComplete = $url . "?offset=" . ($page * 20);
+		}
+		$result = makeRequest($urlComplete, $headers);
+		$resultParsed = json_decode($result, true);
+		if (count($resultParsed['results'][0]['bills']) < 20) {
+			$notLast = false;
+			if (count($resultParsed['results'][0]['bills']) == 0) {
+				return $content;
+			}
+		}
+		if (json_last_error() != JSON_ERROR_NONE) {
+			$content .= theme(
+				'apirenderer_propublica_item',
+				array(
+					'url' => '',
+					'number' => '',
+					'title' => "Propublica Data failed to decode with the following error: [$result]. There is a problem with the SSL configuration or data source. Please contact your web administrator.",
+					'date' => '',
+					'this' => 'error',
+					'congress' => 'error'
+				)
+			);
+		}
+		else if ($resultParsed['status'] != 'OK') {
+			$content .= theme(
+				'apirenderer_propublica_item',
+				array(
+					'url' => '',
+					'number' => '',
+					'title' => "There was an error in retrieving the legislation data. The status code following was returned: [{$resultParsed['status']}]. It is possible that you may have misconfigured the Key or ID.",
+					'date' => '',
+					'this' => 'error',
+					'congress' => 'error'
+				)
+			);
+		}
+		else foreach ($resultParsed['results'][0]['bills'] as $bill) {
+			$content .= theme(
+				'apirenderer_propublica_item',
+				array(
+					'url' => $bill['congressdotgov_url'],
+					'number' => $bill['number'],
+					'title' => $bill['title'],
+					'date' => $bill['introduced_date'],
+					'this' => $table,
+					'congress' => $bill['congress']
+				)
+			);
+		}
+		$page++;
+	}
+
+	return $content;
+}
+function apirenderer_twitter_content() {
+	$html = '';
+	$tweetlist = '';
+	$data = apirenderer_twitter_data();
+
+function _formattedtweet($text) {
+		$text = preg_replace("/([\w]+\:\/\/[\w-?&;#~=\.\/\@]+[\w\/])/", "<a target=\"_blank\" href=\"$1\">$1</a>", $text);
+    $text = preg_replace("/@([\p{L}\p{N}_]{1,15})/u", '<a class="tweet-action" href="https://twitter.com/$1">@$1</a>', $text);
+    $text = preg_replace("/#([\p{L}]+[\p{N}]*)/u", '<a class="tweet-action" href="https://twitter.com/search?q=%23$1">#$1</a>',$text);
+    return $text;
+
+}
+		foreach ($data as $tweets) {
+			$date = '@'. strtotime($tweets['created_at']);
+			$message = _formattedtweet($tweets['text']);
+			$quoted = !empty($tweets['quoted_status']) ? ($tweets['quoted_status']) : NULL;
+			$quoteduser = $quoted['user']['name'];
+			$quotedscreen_name = $quoted['user']['screen_name'];
+			$quotedmessage = _formattedtweet($quoted['text']);
+			$quoteddate = '';
+			if ($quoted) {
+				$quoteddate = '@' . strtotime($quoted['created_at']);
+			}
+				$tweetlist .= theme(
+					'apirenderer_twitter_single',
+						array(
+							'tweet_id' => $tweets['id_str'],
+							'avatar' => $tweets['user']['profile_image_url_https'],
+							'name' => $tweets['user']['name'],
+							'screen_name' => $tweets['user']['screen_name'],
+							'message' => $message,
+							'date' => time_elapsed_string($date),
+							'fav_count' => $tweets['favorite_count'],
+							//retweet variables //
+							'retweet_count'=>$tweets['retweet_count'],
+							'retweeted_status_class' => !empty($tweets['retweeted_status'])?'retweeted':'',
+							'quotedstatus' => $quoted,
+							'quoteduser' => $quoteduser,
+							'quotedmessage' => $quotedmessage,
+							'quotedscreen_name' => $quotedscreen_name,
+							'quoteddate' => time_elapsed_string($quoteddate),
+
+					)
+				);
+				};
+
+
+
+	if ($data === NULL ||empty($data)) {
+		$html = theme(
+			'apirenderer_error',
+			array(
+				'message' => 'No Twitter data was found! Please check your twitter app settings under the Api Renderer config screen.'
+			)
+		);
+	} else  {
+		$html = theme(
+			'apirenderer_twitter_feed',
+			array(
+				'avatar' => $data[0]['user']['profile_image_url_https'],
+				'name' => $data[0]['user']['name'],
+				'screen_name' => $data[0]['user']['screen_name'],
+				'content' => $tweetlist,
+			)
+
+		);
+
+	}
+
+	return $html;
+}
+
+function apirenderer_twitter_data() {
+	$oauth_access_token = variable_get('apirenderer_twitter_oauth_access_token');
+	$oauth_access_token_secret = variable_get('apirenderer_twitter_oauth_access_token_secret');
+	$consumer_key = variable_get('apirenderer_twitter_consumer_key');
+	$consumer_secret =  variable_get('apirenderer_twitter_consumer_key_secret');
+	$user_timeline = variable_get('apirenderer_twitter_user_timeline');
+	$count = variable_get('apirenderer_twitter_count');
+
+	/** Set access tokens here - see: https://dev.twitter.com/apps/ **/
+	$settings = array(
+	    'oauth_access_token' => $oauth_access_token,
+	    'oauth_access_token_secret' => $oauth_access_token_secret,
+	    'consumer_key' => $consumer_key,
+	    'consumer_secret' => $consumer_secret,
+	);
+	//Endpoint URL
+	$url = "https://api.twitter.com/1.1/statuses/user_timeline.json";
+	$requestMethod = "GET";
+	$getfield = "?screen_name=$user_timeline&count=$count";
+	$twitter = new TwitterAPIExchange($settings);
+	$data = json_decode($twitter->setGetfield($getfield)
+	->buildOauth($url, $requestMethod)
+	->performRequest(),$assoc = TRUE);
+
+
+	return $data;
+
+}
