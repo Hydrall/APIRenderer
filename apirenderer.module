@@ -2,6 +2,8 @@
 /**
  * @file
  * A block module that pulls API data and sorts it into tables or otherwise appropriate presentations.
+ * 
+ * Currently implemented: Facebook (albums and feeds), ProPublica sponsored/cosponsored bills, Eventbrite, Twitter, Instagram
  */
 
 /**
