@@ -20,7 +20,7 @@
     </div>
     <div class="col-xs-11 user-info">
       <strong><?php print $name ?></strong><br />
-<a href="https:/twitter.com/statuses/<?php print $tweet_id ?>" target="_blank">@<?php print $screen_name ?></a><span class="date"> <?php print $date ?></span><br /><br />
+<a href="https://twitter.com/statuses/<?php print $tweet_id ?>" target="_blank">@<?php print $screen_name ?></a><span class="date"> <?php print $date ?></span><br /><br />
 <div class="<?php print $retweeted_status_class ?>">
 <?php if(!empty($quotedstatus)): ?>
 		<p><?php print $message ?></p>
@@ -33,8 +33,8 @@
 	<?php endif ?>
 	</div>
 <div class="utilbar row col-md-6 col-sm-12">
-	<span class="respond" ><a href="https:/twitter.com/statuses/<?php print $tweet_id ?>" target="_blank"><span class="fa fa-reply"></span></a></span>
-	<span class="retweets"><a href="https:/twitter.com/statuses/<?php print $tweet_id ?>" target="_blank"><span class="fa fa-retweet"></span> <?php print $retweet_count ?></a></span>
+	<span class="respond"><a href="https://twitter.com/statuses/<?php print $tweet_id ?>" target="_blank"><span class="fa fa-reply"></span></a></span>
+	<span class="retweets"><a href="https://twitter.com/statuses/<?php print $tweet_id ?>" target="_blank"><span class="fa fa-retweet"></span> <?php print $retweet_count ?></a></span>
 	<span class="favs"><span class="fa fa-heart"></span> <?php print $fav_count ?></span>
 </div>
 	</div>
