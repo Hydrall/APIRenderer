@@ -1989,18 +1989,16 @@ function createPropublicaPages($url, $headers, $table) {
 
 	return $content;
 }
+function formattedTweet($text) {
+	$text = preg_replace("/([\w]+\:\/\/[\w-?&;#~=\.\/\@]+[\w\/])/", "<a target=\"_blank\" href=\"$1\">$1</a>", $text);
+    $text = preg_replace("/@([\p{L}\p{N}_]{1,15})/u", '<a class="tweet-action" href="https://twitter.com/$1">@$1</a>', $text);
+    $text = preg_replace("/#([\p{L}]+[\p{N}]*)/u", '<a class="tweet-action" href="https://twitter.com/search?q=%23$1">#$1</a>',$text);
+    return $text;
+}
 function apirenderer_twitter_content() {
 	$html = '';
 	$tweetlist = '';
 	$data = apirenderer_twitter_data();
-
-function _formattedtweet($text) {
-		$text = preg_replace("/([\w]+\:\/\/[\w-?&;#~=\.\/\@]+[\w\/])/", "<a target=\"_blank\" href=\"$1\">$1</a>", $text);
-    $text = preg_replace("/@([\p{L}\p{N}_]{1,15})/u", '<a class="tweet-action" href="https://twitter.com/$1">@$1</a>', $text);
-    $text = preg_replace("/#([\p{L}]+[\p{N}]*)/u", '<a class="tweet-action" href="https://twitter.com/search?q=%23$1">#$1</a>',$text);
-    return $text;
-
-}
 		foreach ($data as $tweets) {
 			$date = '@'. strtotime($tweets['created_at']);
 			$message = _formattedtweet($tweets['text']);
