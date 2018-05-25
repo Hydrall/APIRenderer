@@ -217,3 +217,18 @@
 #block-apirenderer-eventbrite .leftColumn {
 	padding-right: 30px;
 }
+
+/*
+	Block Twitter
+*/ 
+.tweet-item {
+	padding: 2em 0; 
+	border-bottom: 1px solid #efefef;
+}
+.quoted {
+	border: 1px solid #efefef;
+	padding: 10px 15px;
+}
+.twitter-title-1 {
+	display: inline;
+}
