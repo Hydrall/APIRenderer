@@ -27,31 +27,58 @@ function apirenderer_help($path, $arg) {
  * Implements hook_block_info().
  */
 function apirenderer_block_info() {
-	$blocks['eventbrite'] = array(
-		'info' => t('Eventbrite API - All Events'),
+	$eventbrite = variable_get('eventbrite_data', FALSE);
+	$propublicaSp = variable_get('propublica_sp_data', FALSE);
+	$propublicaCo = variable_get('propublica_co_data', FALSE);
+	$facebookAlbum = variable_get('facebook_album_data', FALSE);
+	$facebookFeed =  variable_get('facebook_feed_data', FALSE);
+	$instagram = variable_get('instagram_data', FALSE);
+	if ($eventbrite) {
+		$blocks['eventbritesingle'] = array(
+			'info' => t('Eventbrite API - Single Event'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	if ($facebookAlbum) {
+		$blocks['facebook_album'] = array(
+			'info' => t('Facebook Graph Album API - All Albums'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+		$blocks['facebook_album_short'] = array(
+			'info' => t('Facebook Graph Album API - Limited Albums and Read More'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	if ($facebookFeed) {
+		$blocks['facebook_feed'] = array(
+			'info' => t('Facebook Graph Feed API'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+		$blocks['facebook_feed_short'] = array(
+			'info' => t('Facebook Graph Feed API - Limited Feed and Read More'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	if ($instagram) {
+		$blocks['instagram_gallery'] = array(
+			'info' => t('Instagram Gallery API - Full'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+		$blocks['instagram_gallery_short'] = array(
+			'info' => t('Instagram Gallery API - Short'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	if ($propublicaSp && $propublicaCo) {
+		$blocks['propublica'] = array(
+			'info' => t('Pro Publica Legislation API'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
+	$blocks['twitter_feed'] = array(
+		'info' => t('Twitter Feed - Standard'),
 		'cache' => DRUPAL_CACHE_PER_ROLE,
 	);
-	$blocks['eventbritesingle'] = array(
-		'info' => t('Eventbrite API - Single Event'),
-		'cache' => DRUPAL_CACHE_PER_ROLE,
-	);
-	$blocks['facebook_album'] = array(
-		'info' => t('Facebook Graph Album API - All Albums'),
-		'cache' => DRUPAL_CACHE_PER_ROLE,
-	);
-	$blocks['facebook_album_short'] = array(
-		'info' => t('Facebook Graph Album API - Limited Albums and Read More'),
-		'cache' => DRUPAL_CACHE_PER_ROLE,
-	);
-	$blocks['facebook_feed'] = array(
-		'info' => t('Facebook Graph Feed API'),
-		'cache' => DRUPAL_CACHE_PER_ROLE,
-	);
-	$blocks['facebook_feed_short'] = array(
-		'info' => t('Facebook Graph Feed API - Limited Feed and Read More'),
-		'cache' => DRUPAL_CACHE_PER_ROLE,
-	);
-
 /*
 	$blocks['flickr'] = array(
 		'info' => t('Flickr API'),
@@ -62,26 +89,6 @@ function apirenderer_block_info() {
 		'cache' => DRUPAL_CACHE_PER_ROLE,
 	);
 */
-	$blocks['instagram_gallery'] = array(
-		'info' => t('Instagram Gallery API - Full'),
-		'cache' => DRUPAL_CACHE_PER_ROLE,
-	);
-	$blocks['instagram_gallery_short'] = array(
-		'info' => t('Instagram Gallery API - Short'),
-		'cache' => DRUPAL_CACHE_PER_ROLE,
-	);
-	$blocks['propublica'] = array(
-		'info' => t('Pro Publica Legislation API'),
-		'cache' => DRUPAL_CACHE_PER_ROLE,
-	);
-
-// Twitter Block
-
-		$blocks['twitter_feed'] = array(
-			'info' => t('Twitter Feed - Standard'),
-			'cache' => DRUPAL_CACHE_PER_ROLE,
-		);
-
 	return $blocks;
 }
 
@@ -1988,6 +1995,17 @@ function createPropublicaPages($url, $headers, $table) {
 	return $content;
 }
 
+/************************************
+        	TWITTER API
+ ************************************/
+
+/**
+ * FORMATTED TWEET FUNCTION
+ *
+ * Formats the tweet.
+ *
+ * Always returns text.
+ */
 function formattedTweet($text) {
 	$text = preg_replace("/([\w]+\:\/\/[\w-?&;#~=\.\/\@]+[\w\/])/", "<a target=\"_blank\" href=\"$1\">$1</a>", $text);
     $text = preg_replace("/@([\p{L}\p{N}_]{1,15})/u", '<a class="tweet-action" href="https://twitter.com/$1">@$1</a>', $text);
@@ -1995,48 +2013,49 @@ function formattedTweet($text) {
     return $text;
 }
 
+/**
+ * APIRENDERER TWITTER CONTENT
+ * 
+ * Generates block contents for the Twitter block.
+ * 
+ * Returns the formatted HTML.
+ */
 function apirenderer_twitter_content() {
 	$html = '';
 	$tweetlist = '';
 	$data = apirenderer_twitter_data();
-
-
-		foreach ($data as $tweets) {
-			$date = '@'. strtotime($tweets['created_at']);
-			$message = formattedTweet($tweets['text']);
-			$quoted = !empty($tweets['quoted_status']) ? ($tweets['quoted_status']) : NULL;
-			$quoteduser = $quoted['user']['name'];
-			$quotedscreen_name = $quoted['user']['screen_name'];
-			$quotedmessage = formattedTweet($quoted['text']);
-			$quoteddate = '';
-			if ($quoted) {
-				$quoteddate = '@' . strtotime($quoted['created_at']);
-			}
-				$tweetlist .= theme(
-					'apirenderer_twitter_single',
-						array(
-							'tweet_id' => $tweets['id_str'],
-							'avatar' => $tweets['user']['profile_image_url_https'],
-							'name' => $tweets['user']['name'],
-							'screen_name' => $tweets['user']['screen_name'],
-							'message' => $message,
-							'date' => time_elapsed_string($date),
-							'fav_count' => $tweets['favorite_count'],
-							//retweet variables //
-							'retweet_count'=>$tweets['retweet_count'],
-							'retweeted_status_class' => !empty($tweets['retweeted_status'])?'retweeted':'',
-							'quotedstatus' => $quoted,
-							'quoteduser' => $quoteduser,
-							'quotedmessage' => $quotedmessage,
-							'quotedscreen_name' => $quotedscreen_name,
-							'quoteddate' => time_elapsed_string($quoteddate),
-
-					)
-				);
-				};
-
-
-
+	foreach ($data as $tweets) {
+		$date = '@'. strtotime($tweets['created_at']);
+		$message = formattedTweet($tweets['text']);
+		$quoted = !empty($tweets['quoted_status']) ? ($tweets['quoted_status']) : NULL;
+		$quoteduser = $quoted['user']['name'];
+		$quotedscreen_name = $quoted['user']['screen_name'];
+		$quotedmessage = formattedTweet($quoted['text']);
+		$quoteddate = '';
+		if ($quoted) {
+			$quoteddate = '@' . strtotime($quoted['created_at']);
+		}
+		$tweetlist .= theme(
+			'apirenderer_twitter_single',
+			array(
+				'tweet_id' => $tweets['id_str'],
+				'avatar' => $tweets['user']['profile_image_url_https'],
+				'name' => $tweets['user']['name'],
+				'screen_name' => $tweets['user']['screen_name'],
+				'message' => $message,
+				'date' => time_elapsed_string($date),
+				'fav_count' => $tweets['favorite_count'],
+				//retweet variables //
+				'retweet_count'=>$tweets['retweet_count'],
+				'retweeted_status_class' => !empty($tweets['retweeted_status'])?'retweeted':'',
+				'quotedstatus' => $quoted,
+				'quoteduser' => $quoteduser,
+				'quotedmessage' => $quotedmessage,
+				'quotedscreen_name' => $quotedscreen_name,
+				'quoteddate' => time_elapsed_string($quoteddate),
+			)
+		);
+	};
 	if ($data === NULL ||empty($data)) {
 		$html = theme(
 			'apirenderer_error',
@@ -2053,14 +2072,18 @@ function apirenderer_twitter_content() {
 				'screen_name' => $data[0]['user']['screen_name'],
 				'content' => $tweetlist,
 			)
-
 		);
-
 	}
-
 	return $html;
 }
 
+/**
+ * APIRENDERER TWITTER DATA
+ * 
+ * Gets the data for the twitter block.
+ * 
+ * If successful, returns the data. If not successful, appears to break with no useful errors? Why though?
+ */
 function apirenderer_twitter_data() {
 	$oauth_access_token = variable_get('apirenderer_twitter_oauth_access_token');
 	$oauth_access_token_secret = variable_get('apirenderer_twitter_oauth_access_token_secret');
@@ -2068,7 +2091,6 @@ function apirenderer_twitter_data() {
 	$consumer_secret =  variable_get('apirenderer_twitter_consumer_key_secret');
 	$user_timeline = variable_get('apirenderer_twitter_user_timeline');
 	$count = variable_get('apirenderer_twitter_count');
-
 	/** Set access tokens here - see: https://dev.twitter.com/apps/ **/
 	$settings = array(
 	    'oauth_access_token' => $oauth_access_token,
@@ -2082,10 +2104,8 @@ function apirenderer_twitter_data() {
 	$getfield = "?screen_name=$user_timeline&count=$count";
 	$twitter = new TwitterAPIExchange($settings);
 	$data = json_decode($twitter->setGetfield($getfield)
-	->buildOauth($url, $requestMethod)
-	->performRequest(),$assoc = TRUE);
-
-
+		->buildOauth($url, $requestMethod)
+		->performRequest(),$assoc = TRUE
+	);
 	return $data;
-
 }
