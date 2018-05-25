@@ -665,7 +665,7 @@ function apirenderer_block_view($delta = '') {
 			break;
 		case 'instagram_gallery_short':
 			$results = variable_get("apirenderer_instagram_gallery_short_default_results", "1");
-			$block['content'] = apirenderer_instagram_contents('short', $results);
+			$block['content'] = apirenderer_instagram_gallery_contents('short', $results);
 			break;
 		case 'propublica':
 			$results = variable_get("apirenderer_propublica_default_results", "20");
@@ -1781,7 +1781,7 @@ function getDataInstagram($token) {
 	}
 	//Final return value.
 	if ($error == '') {
-		variable_set('eventbrite_data', $result);
+		variable_set('instagram_data', $result);
 		$return = TRUE;
 	}
 	else {
@@ -1842,11 +1842,12 @@ function apirenderer_instagram_gallery_contents($block, $results = 1) {
 		$link = variable_get('apirenderer_instagram_gallery_short_main_node', '');
 		$content = '';
 		$parsed = json_decode($data, true);
-		for ($x = 0; $x < $results; $x++) {
-			$albumid = $data[$x]["id"];
-			$title = $data[$x]["caption"]["text"];
-			$cover = $data[$x]["images"]["low_resolution"]["url"];
-			$link = $data[$x]["link"];
+		$resultNumber = 0;
+		foreach($parsed['data'] as $itm) {
+			$albumid = $itm["id"];
+			$title = $itm["caption"]["text"];
+			$cover = $itm["images"]["low_resolution"]["url"];
+			$link = $itm["link"];
 			$content .= theme(
 				'photo_gallery_item',
 				array(
@@ -1861,11 +1862,15 @@ function apirenderer_instagram_gallery_contents($block, $results = 1) {
 					'link' => $link
 				)
 			);
+			$resultNumber++;
+			if ($resultNumber == $results) {
+				break;
+			}
 		}
 		$html = theme(
 			'photo_gallery_sidebar',
 			array(
-				'title' => '',
+				'title' => 'Instagram',
 				'content' => $content,
 			)
 		);

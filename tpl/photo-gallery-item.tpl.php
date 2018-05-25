@@ -9,7 +9,7 @@
  * 
  */
  ?>
-    <div class="feed-item <?php print $type ?>" id="gallery-<?php print $albumid ?>">
+    <div class="feed-item col-xs-4 <?php print $type ?>" id="gallery-<?php print $albumid ?>">
       <div class="feed-item-thumbnail">
         <a href="<?php print $link ?>" class="<?php print $colorbox ?>" target="<?php print $target ?>"><img src="<?php print $cover ?>" alt="Photo Gallery Thumbnail" /></a>
       </div>
