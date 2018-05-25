@@ -35,57 +35,57 @@ function apirenderer_block_info() {
 	$instagram = variable_get('instagram_data', FALSE);
 	if ($eventbrite) {
 		$blocks['eventbritesingle'] = array(
-			'info' => t('Eventbrite API - Single Event'),
+			'info' => t('APIRenderer Eventbrite API - Single Event'),
 			'cache' => DRUPAL_CACHE_PER_ROLE,
 		);
 	}
 	if ($facebookAlbum) {
 		$blocks['facebook_album'] = array(
-			'info' => t('Facebook Graph Album API - All Albums'),
+			'info' => t('APIRenderer Facebook Graph Album API - All Albums'),
 			'cache' => DRUPAL_CACHE_PER_ROLE,
 		);
 		$blocks['facebook_album_short'] = array(
-			'info' => t('Facebook Graph Album API - Limited Albums and Read More'),
+			'info' => t('APIRenderer Facebook Graph Album API - Limited Albums and Read More'),
 			'cache' => DRUPAL_CACHE_PER_ROLE,
 		);
 	}
 	if ($facebookFeed) {
 		$blocks['facebook_feed'] = array(
-			'info' => t('Facebook Graph Feed API'),
+			'info' => t('APIRenderer Facebook Graph Feed API'),
 			'cache' => DRUPAL_CACHE_PER_ROLE,
 		);
 		$blocks['facebook_feed_short'] = array(
-			'info' => t('Facebook Graph Feed API - Limited Feed and Read More'),
+			'info' => t('APIRenderer Facebook Graph Feed API - Limited Feed and Read More'),
 			'cache' => DRUPAL_CACHE_PER_ROLE,
 		);
 	}
 	if ($instagram) {
 		$blocks['instagram_gallery'] = array(
-			'info' => t('Instagram Gallery API - Full'),
+			'info' => t('APIRenderer Instagram Gallery API - Full'),
 			'cache' => DRUPAL_CACHE_PER_ROLE,
 		);
 		$blocks['instagram_gallery_short'] = array(
-			'info' => t('Instagram Gallery API - Short'),
+			'info' => t('APIRenderer Instagram Gallery API - Short'),
 			'cache' => DRUPAL_CACHE_PER_ROLE,
 		);
 	}
 	if ($propublicaSp && $propublicaCo) {
 		$blocks['propublica'] = array(
-			'info' => t('Pro Publica Legislation API'),
+			'info' => t('APIRenderer Pro Publica Legislation API'),
 			'cache' => DRUPAL_CACHE_PER_ROLE,
 		);
 	}
 	$blocks['twitter_feed'] = array(
-		'info' => t('Twitter Feed - Standard'),
+		'info' => t('APIRenderer Twitter Feed - Standard'),
 		'cache' => DRUPAL_CACHE_PER_ROLE,
 	);
 /*
 	$blocks['flickr'] = array(
-		'info' => t('Flickr API'),
+		'info' => t('APIRenderer Flickr API'),
 		'cache' => DRUPAL_CACHE_PER_ROLE,
 	);
 	$blocks['flickr_short'] = array(
-		'info' => t('Flickr API - Limited Images and Read More'),
+		'info' => t('APIRenderer Flickr API - Limited Images and Read More'),
 		'cache' => DRUPAL_CACHE_PER_ROLE,
 	);
 */
