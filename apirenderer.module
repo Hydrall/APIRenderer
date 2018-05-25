@@ -27,12 +27,14 @@ function apirenderer_help($path, $arg) {
  * Implements hook_block_info().
  */
 function apirenderer_block_info() {
+	//Find which blocks are to be used.
 	$eventbrite = variable_get('eventbrite_data', FALSE);
 	$propublicaSp = variable_get('propublica_sp_data', FALSE);
 	$propublicaCo = variable_get('propublica_co_data', FALSE);
 	$facebookAlbum = variable_get('facebook_album_data', FALSE);
 	$facebookFeed =  variable_get('facebook_feed_data', FALSE);
 	$instagram = variable_get('instagram_data', FALSE);
+	$twitter = variable_get('twitter_data', FALSE);
 	if ($eventbrite) {
 		$blocks['eventbritesingle'] = array(
 			'info' => t('APIRenderer Eventbrite API - Single Event'),
@@ -75,10 +77,12 @@ function apirenderer_block_info() {
 			'cache' => DRUPAL_CACHE_PER_ROLE,
 		);
 	}
-	$blocks['twitter_feed'] = array(
-		'info' => t('APIRenderer Twitter Feed - Standard'),
-		'cache' => DRUPAL_CACHE_PER_ROLE,
-	);
+	if ($twitter) {
+		$blocks['twitter_feed'] = array(
+			'info' => t('APIRenderer Twitter Feed - Standard'),
+			'cache' => DRUPAL_CACHE_PER_ROLE,
+		);
+	}
 /*
 	$blocks['flickr'] = array(
 		'info' => t('APIRenderer Flickr API'),
@@ -603,6 +607,18 @@ function apirenderer_form_validate($form, &$form_state) {
 			}
 		}
 	}
+	//Validate TWITTER
+	if (!empty($twitter_consumer_key) && !empty($twitter_consumer_key_secret) && !empty($twitter_oauth_access_token) && !empty($twitter_oauth_access_token_secret) && !empty($twitter_user_timeline) && !empty($twitter_count)) {
+		if (!is_numeric($twitter_count) || $twitter_count <= 0 || $twitter_count > 20) {
+			form_set_error('apirenderer_twitter_count', t("Please enter a valid number."));
+		}
+		else {
+			$dataResultTwitter = getDataTwitter($twitter_oauth_access_token, $twitter_oauth_access_token_secret, $twitter_consumer_key, $twitter_consumer_key_secret, $twitter_user_timeline, $twitter_count);
+			if ($dataResultTwitter !== true) {
+				form_set_error('apirenderer_twitter', t("Twitter Feed Error: $dataResultTwitter"));
+			}
+		}
+	}
 }
 
 /**
@@ -670,9 +686,15 @@ function apirenderer_cron() {
 	$instagramToken = variable_get('apirenderer_instagram_gallery_token');
 	$facebookID = variable_get('apirenderer_facebook_id');
 	$facebookToken = variable_get('apirenderer_facebook_token');
+	$twitter_consumer_key = variable_get('apirenderer_twitter_consumer_key');
+	$twitter_consumer_key_secret = variable_get('apirenderer_twitter_consumer_key_secret');
+	$twitter_oauth_access_token = variable_get('apirenderer_twitter_oauth_access_token');
+	$twitter_oauth_access_token_secret = variable_get('apirenderer_twitter_oauth_access_token_secret');
+	$twitter_user_timeline = variable_get('apirenderer_twitter_user_timeline');
+	$twitter_count = variable_get('apirenderer_twitter_count');
 	$queue = DrupalQueue::get('apirenderer');
 	//Checks to see what's actually set.
-	if ($propublicaKey && $propublicaID && $propublicaResults) {
+	if ($propublicaKey && $propublicaID) {
 		$vars['propublicaKey'] = $propublicaKey;
 		$vars['propublicaID'] = $propublicaID;
 	}
@@ -686,6 +708,14 @@ function apirenderer_cron() {
 	if ($facebookToken && $facebookID) {
 		$vars['facebookToken'] = $facebookToken;
 		$vars['facebookID'] = $facebookID;
+	}
+	if ($twitter_consumer_key && $twitter_consumer_key_secret && $twitter_oauth_access_token && $twitter_oauth_access_token_secret && $twitter_user_timeline && $twitter_count) {
+		$vars['twitter_oauth_access_token'] = $twitter_consumer_key;
+		$vars['twitter_oauth_access_token_secret'] = $twitter_consumer_key_secret;
+		$vars['twitter_consumer_key'] = $twitter_oauth_access_token;
+		$vars['twitter_consumer_key_secret'] = $twitter_oauth_access_token_secret;
+		$vars['twitter_user_timeline'] = $twitter_user_timeline;
+		$vars['twitter_count'] = $twitter_count;
 	}
 	//Passes what is set to the cron queue.
 	$queue->createItem($vars);
@@ -816,6 +846,12 @@ function apirendererRefresh($vars) {
 			}
 			if ($error != '') {
 				drupal_set_message(t($error), 'warning');
+			}
+		}
+		if (($key == 'twitterOath') && ($val)) {
+			$dataResultTwit = $dataResultTwitter = getDataTwitter($vars['twitter_oauth_access_token'], $vars['twitter_oauth_access_token_secret'], $vars['twitter_consumer_key'], $vars['twitter_consumer_key_secret'], $vars['twitter_user_timeline'], $vars['twitter_count']);
+			if ($dataResultTwit !== true) {
+				drupal_set_message(t($dataResultTwit), 'warning');
 			}
 		}
 	}
@@ -2023,47 +2059,40 @@ function formattedTweet($text) {
 function apirenderer_twitter_content() {
 	$html = '';
 	$tweetlist = '';
-	$data = apirenderer_twitter_data();
-	foreach ($data as $tweets) {
-		$date = '@'. strtotime($tweets['created_at']);
-		$message = formattedTweet($tweets['text']);
-		$quoted = !empty($tweets['quoted_status']) ? ($tweets['quoted_status']) : NULL;
-		$quoteduser = $quoted['user']['name'];
-		$quotedscreen_name = $quoted['user']['screen_name'];
-		$quotedmessage = formattedTweet($quoted['text']);
-		$quoteddate = '';
-		if ($quoted) {
-			$quoteddate = '@' . strtotime($quoted['created_at']);
-		}
-		$tweetlist .= theme(
-			'apirenderer_twitter_single',
-			array(
-				'tweet_id' => $tweets['id_str'],
-				'avatar' => $tweets['user']['profile_image_url_https'],
-				'name' => $tweets['user']['name'],
-				'screen_name' => $tweets['user']['screen_name'],
-				'message' => $message,
-				'date' => time_elapsed_string($date),
-				'fav_count' => $tweets['favorite_count'],
-				//retweet variables //
-				'retweet_count'=>$tweets['retweet_count'],
-				'retweeted_status_class' => !empty($tweets['retweeted_status'])?'retweeted':'',
-				'quotedstatus' => $quoted,
-				'quoteduser' => $quoteduser,
-				'quotedmessage' => $quotedmessage,
-				'quotedscreen_name' => $quotedscreen_name,
-				'quoteddate' => time_elapsed_string($quoteddate),
-			)
-		);
-	};
-	if ($data === NULL ||empty($data)) {
-		$html = theme(
-			'apirenderer_error',
-			array(
-				'message' => 'No Twitter data was found! Please check your twitter app settings under the Api Renderer config screen.'
-			)
-		);
-	} else  {
+	$data = variable_get('twitter_data', FALSE);
+	if ($data) {
+		foreach ($data as $tweets) {
+			$date = '@'. strtotime($tweets['created_at']);
+			$message = formattedTweet($tweets['text']);
+			$quoted = !empty($tweets['quoted_status']) ? ($tweets['quoted_status']) : NULL;
+			$quoteduser = $quoted['user']['name'];
+			$quotedscreen_name = $quoted['user']['screen_name'];
+			$quotedmessage = formattedTweet($quoted['text']);
+			$quoteddate = '';
+			if ($quoted) {
+				$quoteddate = '@' . strtotime($quoted['created_at']);
+			}
+			$tweetlist .= theme(
+				'apirenderer_twitter_single',
+				array(
+					'tweet_id' => $tweets['id_str'],
+					'avatar' => $tweets['user']['profile_image_url_https'],
+					'name' => $tweets['user']['name'],
+					'screen_name' => $tweets['user']['screen_name'],
+					'message' => $message,
+					'date' => time_elapsed_string($date),
+					'fav_count' => $tweets['favorite_count'],
+					//retweet variables //
+					'retweet_count'=>$tweets['retweet_count'],
+					'retweeted_status_class' => !empty($tweets['retweeted_status'])?'retweeted':'',
+					'quotedstatus' => $quoted,
+					'quoteduser' => $quoteduser,
+					'quotedmessage' => $quotedmessage,
+					'quotedscreen_name' => $quotedscreen_name,
+					'quoteddate' => time_elapsed_string($quoteddate),
+				)
+			);
+		};
 		$html = theme(
 			'apirenderer_twitter_feed',
 			array(
@@ -2071,6 +2100,14 @@ function apirenderer_twitter_content() {
 				'name' => $data[0]['user']['name'],
 				'screen_name' => $data[0]['user']['screen_name'],
 				'content' => $tweetlist,
+			)
+		);
+	}
+	else {
+		$html = theme(
+			'apirenderer_error',
+			array(
+				'message' => 'No Twitter data was found! Please check your twitter app settings under the Api Renderer config screen.'
 			)
 		);
 	}
@@ -2084,13 +2121,8 @@ function apirenderer_twitter_content() {
  * 
  * If successful, returns the data. If not successful, appears to break with no useful errors? Why though?
  */
-function apirenderer_twitter_data() {
-	$oauth_access_token = variable_get('apirenderer_twitter_oauth_access_token');
-	$oauth_access_token_secret = variable_get('apirenderer_twitter_oauth_access_token_secret');
-	$consumer_key = variable_get('apirenderer_twitter_consumer_key');
-	$consumer_secret =  variable_get('apirenderer_twitter_consumer_key_secret');
-	$user_timeline = variable_get('apirenderer_twitter_user_timeline');
-	$count = variable_get('apirenderer_twitter_count');
+function getDataTwitter($oauth_access_token, $oauth_access_token_secret, $consumer_key, $consumer_secret, $user_timeline, $count) {
+	$return = FALSE;
 	/** Set access tokens here - see: https://dev.twitter.com/apps/ **/
 	$settings = array(
 	    'oauth_access_token' => $oauth_access_token,
@@ -2107,5 +2139,12 @@ function apirenderer_twitter_data() {
 		->buildOauth($url, $requestMethod)
 		->performRequest(),$assoc = TRUE
 	);
-	return $data;
+	if ($data === NULL ||empty($data)) {
+		$return = "Something went wrong with the twitter feed provided.";
+	}
+	else {
+		variable_set('twitter_data', $data);
+		$return = TRUE;
+	}
+	return $return;
 }
