@@ -2036,17 +2036,38 @@ function createPropublicaPages($url, $headers, $table) {
  ************************************/
 
 /**
- * FORMATTED TWEET FUNCTION
- *
- * Formats the tweet.
- *
- * Always returns text.
+ * APIRENDERER TWITTER DATA
+ * 
+ * Gets the data for the twitter block.
+ * 
+ * If successful, returns the data. If not successful, appears to break with no useful errors? Why though?
  */
-function formattedTweet($text) {
-	$text = preg_replace("/([\w]+\:\/\/[\w-?&;#~=\.\/\@]+[\w\/])/", "<a target=\"_blank\" href=\"$1\">$1</a>", $text);
-    $text = preg_replace("/@([\p{L}\p{N}_]{1,15})/u", '<a class="tweet-action" href="https://twitter.com/$1">@$1</a>', $text);
-    $text = preg_replace("/#([\p{L}]+[\p{N}]*)/u", '<a class="tweet-action" href="https://twitter.com/search?q=%23$1">#$1</a>',$text);
-    return $text;
+function getDataTwitter($oauth_access_token, $oauth_access_token_secret, $consumer_key, $consumer_secret, $user_timeline, $count) {
+	$return = FALSE;
+	/** Set access tokens here - see: https://dev.twitter.com/apps/ **/
+	$settings = array(
+	    'oauth_access_token' => $oauth_access_token,
+	    'oauth_access_token_secret' => $oauth_access_token_secret,
+	    'consumer_key' => $consumer_key,
+	    'consumer_secret' => $consumer_secret,
+	);
+	//Endpoint URL
+	$url = "https://api.twitter.com/1.1/statuses/user_timeline.json";
+	$requestMethod = "GET";
+	$getfield = "?screen_name=$user_timeline&count=$count";
+	$twitter = new TwitterAPIExchange($settings);
+	$data = json_decode($twitter->setGetfield($getfield)
+		->buildOauth($url, $requestMethod)
+		->performRequest(),$assoc = TRUE
+	);
+	if ($data === NULL ||empty($data)) {
+		$return = "Something went wrong with the twitter feed provided.";
+	}
+	else {
+		variable_set('twitter_data', $data);
+		$return = TRUE;
+	}
+	return $return;
 }
 
 /**
@@ -2115,36 +2136,15 @@ function apirenderer_twitter_content() {
 }
 
 /**
- * APIRENDERER TWITTER DATA
- * 
- * Gets the data for the twitter block.
- * 
- * If successful, returns the data. If not successful, appears to break with no useful errors? Why though?
+ * FORMATTED TWEET FUNCTION
+ *
+ * Formats the tweet.
+ *
+ * Always returns text.
  */
-function getDataTwitter($oauth_access_token, $oauth_access_token_secret, $consumer_key, $consumer_secret, $user_timeline, $count) {
-	$return = FALSE;
-	/** Set access tokens here - see: https://dev.twitter.com/apps/ **/
-	$settings = array(
-	    'oauth_access_token' => $oauth_access_token,
-	    'oauth_access_token_secret' => $oauth_access_token_secret,
-	    'consumer_key' => $consumer_key,
-	    'consumer_secret' => $consumer_secret,
-	);
-	//Endpoint URL
-	$url = "https://api.twitter.com/1.1/statuses/user_timeline.json";
-	$requestMethod = "GET";
-	$getfield = "?screen_name=$user_timeline&count=$count";
-	$twitter = new TwitterAPIExchange($settings);
-	$data = json_decode($twitter->setGetfield($getfield)
-		->buildOauth($url, $requestMethod)
-		->performRequest(),$assoc = TRUE
-	);
-	if ($data === NULL ||empty($data)) {
-		$return = "Something went wrong with the twitter feed provided.";
-	}
-	else {
-		variable_set('twitter_data', $data);
-		$return = TRUE;
-	}
-	return $return;
+function formattedTweet($text) {
+	$text = preg_replace("/([\w]+\:\/\/[\w-?&;#~=\.\/\@]+[\w\/])/", "<a target=\"_blank\" href=\"$1\">$1</a>", $text);
+    $text = preg_replace("/@([\p{L}\p{N}_]{1,15})/u", '<a class="tweet-action" href="https://twitter.com/$1">@$1</a>', $text);
+    $text = preg_replace("/#([\p{L}]+[\p{N}]*)/u", '<a class="tweet-action" href="https://twitter.com/search?q=%23$1">#$1</a>',$text);
+    return $text;
 }
