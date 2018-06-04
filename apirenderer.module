@@ -1766,7 +1766,7 @@ function getDataInstagram($token) {
 	$content = '';
 	$error = '';
 	//Construct the URL.
-	$url = "https://api.instagram.com/v1/users/self/media/recent/?access_token=$token";
+	$url = "https://api.instagram.com/v1/users/self/media/recent/?count=30&access_token=$token";
 	//Make the request.
 	$result = makeRequest($url);
 	$resultParsed = json_decode($result, true);
