@@ -15,126 +15,18 @@
           LIST VIEW photo feeds
 ******************************/
 
-.photo-feed .feed-item.facebook {
-	margin-bottom: 1.5em;
-	width: 200px;
-	float: left;
-	margin-right: 20px;
-	text-align: center;
+.feed-item {
+	margin-bottom: 15px;
+	padding: 0;
 }
 
-.photo-feed .feed-item.flickr {
-	margin-bottom: 1.5em;
-	clear: none;
-	float: left;
-	width: auto;
-	position: relative;
+.feed-item-thumbnail img {
+	max-width: 100%;
+	height: auto;	
 }
 
-.photo-feed .feed-item.instagram {
-	clear: both;
-	margin-bottom: 1.5em;
-	overflow: hidden;
-}
-
-.photo-feed  .feed-item-title {
-	margin: 5px 0px;
-	font-size: 12px;
-}
-
-.photo-feed .flickr .feed-item-title {
-	margin: 0px;
-	padding: 5px 10px;
-	width: 180px;
-	bottom: 0;
-	background: transparent url("photo-bg.png");
-	position: absolute;
-	line-height: .8em;
-}
-
-.photo-feed .flickr .feed-item-title a {
-	color: white;
-	text-decoration: none;
-	font-size: 12px;
-	font-weight: bold;
-	font-family: Arial, sans-serif;
-	letter-spacing: normal;
-}
-
-.not-front #region-content .photo-feed .facebook .feed-item-title {
-	font-size: 12px;
-}
-
-.photo-feed .feed-item-thumbnail {
-	height: 120px;
-	overflow: hidden;
-}
-
-.photo-feed .instagram .feed-item-thumbnail {
-	height: 200px;
-	float: left;
-	clear: left;
-}
-
-.photo-feed  .flickr .feed-item-summary{
+.feed-item-title {
 	display: none;
-}
-
-.photo-feed .flickr .feed-item-thumbnail {
-	height: 150px;
-	float: left;
-	clear: left;
-}
-
-.not-front #region-content .photo-feed .feed-item-thumbnail img,
-.front .photo-feed .feed-item-thumbnail img {
-	width: 200px;
-	margin: 0px;
-	padding: 0px;
-	border: 0 none;
-	min-height: 120px;
-}
-
-.not-front #region-content .photo-feed .flickr .feed-item-thumbnail img,
-.front .photo-feed .flickr .feed-item-thumbnail img,
-.not-front #region-content .photo-feed .instagram .feed-item-thumbnail img,
-.front .photo-feed .instagram .feed-item-thumbnail img {
-	margin-right: 10px;
-	min-height: 150px;
-}
-
-.photo-feed .flickr .feed-item-description {
-	min-height: 150px;
-}
-
-.photo-feed .flickr  .feed-item-summary {
-	margin-left: 210px;
-}
-
-#photo-feed-list-sidebar .feed-item.instagram .feed-item-title {
-	display: none;
-}
-
-#photo-feed-list-sidebar .feed-item.instagram {
-	float: left;
-	clear: none;
-	margin-bottom: 3px;
-}
-
-#photo-feed-list-sidebar .instagram .feed-item-thumbnail img,
-.not-front #photo-feed-list-sidebar .instagram .feed-item-thumbnail img,
-.not-front #region-content #photo-feed-list-sidebar .instagram .feed-item-thumbnail img{
-	width: 100px;
-	min-height: 100px;
-	margin-right: 3px;
-}
-
-#photo-feed-list-sidebar  .instagram .feed-item-thumbnail {
-	height: 100px;
-}
-
-.photo-feed .clear {
-	clear: left;
 }
 
 /*
