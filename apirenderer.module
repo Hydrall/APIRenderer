@@ -848,8 +848,8 @@ function apirendererRefresh($vars) {
 				drupal_set_message(t($error), 'warning');
 			}
 		}
-		if (($key == 'twitterOath') && ($val)) {
-			$dataResultTwit = $dataResultTwitter = getDataTwitter($vars['twitter_oauth_access_token'], $vars['twitter_oauth_access_token_secret'], $vars['twitter_consumer_key'], $vars['twitter_consumer_key_secret'], $vars['twitter_user_timeline'], $vars['twitter_count']);
+		if (($key == 'twitter_oauth_access_token') && ($val)) {
+			$dataResultTwit = getDataTwitter($vars['twitter_oauth_access_token'], $vars['twitter_oauth_access_token_secret'], $vars['twitter_consumer_key'], $vars['twitter_consumer_key_secret'], $vars['twitter_user_timeline'], $vars['twitter_count']);
 			if ($dataResultTwit !== true) {
 				drupal_set_message(t($dataResultTwit), 'warning');
 			}

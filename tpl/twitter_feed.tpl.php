@@ -15,5 +15,5 @@
 	<div class="twitter-content">
     <?php print $content ?>
   </div>
-  <a href="#" class="twitter-follow btn btn-default">Follow me on twitter </a>
+  <a href="https://twitter.com/<?php print $screen_name ?>" class="twitter-follow btn btn-default">Follow me on twitter </a>
 </div>
