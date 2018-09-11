@@ -10,7 +10,7 @@
  * 
  */
 ?>
-<div class="container propublica">
+<div class="container-fluid propublica">
 	<div class="row">
 		<div class="col-md-4 col-md-push-8" id="filter">
 			<select id="selectMe" name="sponsored">
@@ -33,11 +33,11 @@
 					<h3>
 						Search Congress.gov
 					</h3>
-					<label for="thomas_search">
+					<!--<label for="thomas_search">
 						<span class="hidden">
 							Search Congress
 						</span>
-					</label>
+					</label>-->
 					<form id="congress" title="Thomas Search" class="form-inline form">
 						<input type="hidden" name="congress" id="congress" value="115">
 						<input type="hidden" name="database" value="text">
@@ -111,6 +111,7 @@
 		window.onload = function(){
 			$(".sponsored").show();
 			$(".cosponsored").hide();
+			$('#selectMe').val("1");
 			//Get default results per page.
 			var $results = <?php print $results ?>;
 			//Create the pagination.

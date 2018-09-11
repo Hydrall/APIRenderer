@@ -710,10 +710,10 @@ function apirenderer_cron() {
 		$vars['facebookID'] = $facebookID;
 	}
 	if ($twitter_consumer_key && $twitter_consumer_key_secret && $twitter_oauth_access_token && $twitter_oauth_access_token_secret && $twitter_user_timeline && $twitter_count) {
-		$vars['twitter_oauth_access_token'] = $twitter_consumer_key;
-		$vars['twitter_oauth_access_token_secret'] = $twitter_consumer_key_secret;
-		$vars['twitter_consumer_key'] = $twitter_oauth_access_token;
-		$vars['twitter_consumer_key_secret'] = $twitter_oauth_access_token_secret;
+		$vars['twitter_oauth_access_token'] = $twitter_oauth_access_token;
+		$vars['twitter_oauth_access_token_secret'] = $twitter_oauth_access_token_secret;
+		$vars['twitter_consumer_key'] = $twitter_consumer_key;
+		$vars['twitter_consumer_key_secret'] = $twitter_consumer_key_secret;
 		$vars['twitter_user_timeline'] = $twitter_user_timeline;
 		$vars['twitter_count'] = $twitter_count;
 	}
@@ -2087,47 +2087,57 @@ function apirenderer_twitter_content() {
 	$tweetlist = '';
 	$data = variable_get('twitter_data', FALSE);
 	if ($data) {
-		foreach ($data as $tweets) {
-			$date = '@'. strtotime($tweets['created_at']);
-			$message = formattedTweet($tweets['text']);
-			$quoted = !empty($tweets['quoted_status']) ? ($tweets['quoted_status']) : NULL;
-			$quoteduser = $quoted['user']['name'];
-			$quotedscreen_name = $quoted['user']['screen_name'];
-			$quotedmessage = formattedTweet($quoted['text']);
-			$quoteddate = '';
-			if ($quoted) {
-				$quoteddate = '@' . strtotime($quoted['created_at']);
-			}
-			$tweetlist .= theme(
-				'apirenderer_twitter_single',
+		if (array_key_exists('id_str', $data[0])) {
+			foreach ($data as $tweets) {
+				$date = '@'. strtotime($tweets['created_at']);
+				$message = formattedTweet($tweets['text']);
+				$quoted = !empty($tweets['quoted_status']) ? ($tweets['quoted_status']) : NULL;
+				$quoteduser = $quoted['user']['name'];
+				$quotedscreen_name = $quoted['user']['screen_name'];
+				$quotedmessage = formattedTweet($quoted['text']);
+				$quoteddate = '';
+				if ($quoted) {
+					$quoteddate = '@' . strtotime($quoted['created_at']);
+				}
+				$tweetlist .= theme(
+					'apirenderer_twitter_single',
+					array(
+						'tweet_id' => $tweets['id_str'],
+						'avatar' => $tweets['user']['profile_image_url_https'],
+						'name' => $tweets['user']['name'],
+						'screen_name' => $tweets['user']['screen_name'],
+						'message' => $message,
+						'date' => time_elapsed_string($date),
+						'fav_count' => $tweets['favorite_count'],
+						//retweet variables //
+						'retweet_count'=>$tweets['retweet_count'],
+						'retweeted_status_class' => !empty($tweets['retweeted_status'])?'retweeted':'',
+						'quotedstatus' => $quoted,
+						'quoteduser' => $quoteduser,
+						'quotedmessage' => $quotedmessage,
+						'quotedscreen_name' => $quotedscreen_name,
+						'quoteddate' => time_elapsed_string($quoteddate),
+					)
+				);
+			};
+			$html = theme(
+				'apirenderer_twitter_feed',
 				array(
-					'tweet_id' => $tweets['id_str'],
-					'avatar' => $tweets['user']['profile_image_url_https'],
-					'name' => $tweets['user']['name'],
-					'screen_name' => $tweets['user']['screen_name'],
-					'message' => $message,
-					'date' => time_elapsed_string($date),
-					'fav_count' => $tweets['favorite_count'],
-					//retweet variables //
-					'retweet_count'=>$tweets['retweet_count'],
-					'retweeted_status_class' => !empty($tweets['retweeted_status'])?'retweeted':'',
-					'quotedstatus' => $quoted,
-					'quoteduser' => $quoteduser,
-					'quotedmessage' => $quotedmessage,
-					'quotedscreen_name' => $quotedscreen_name,
-					'quoteddate' => time_elapsed_string($quoteddate),
+					'avatar' => $data[0]['user']['profile_image_url_https'],
+					'name' => $data[0]['user']['name'],
+					'screen_name' => $data[0]['user']['screen_name'],
+					'content' => $tweetlist,
 				)
 			);
-		};
-		$html = theme(
-			'apirenderer_twitter_feed',
-			array(
-				'avatar' => $data[0]['user']['profile_image_url_https'],
-				'name' => $data[0]['user']['name'],
-				'screen_name' => $data[0]['user']['screen_name'],
-				'content' => $tweetlist,
-			)
-		);
+		}
+		else {
+			$html = theme(
+				'apirenderer_error',
+				array(
+					'message' => 'No Twitter data was found!'
+				)
+			);
+		}
 	}
 	else {
 		$html = theme(

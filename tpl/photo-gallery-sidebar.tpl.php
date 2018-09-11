@@ -12,7 +12,7 @@
  ?>
 <div id="photo-feed-list-sidebar" class="photo-feed">
 	<h2 class="photo-feed-title"><?php print $title ?></h2>
-	<?php print $content ?>
+	<div class="photo-feed-content"><?php print $content ?></div>
 	<?php if ($page_link != ''): ?>
 		<div class="read-more"><?php print $page_link ?></div>
 	<?php endif; ?>
